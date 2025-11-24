@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "lastSync": "2025-01-20T00:00:00Z",
+  "totalBoards": 1,
+  "totalCards": 35,
+  "boards": [
+    {
+      "id": "5c35aeade878c43a9134927a",
+      "name": "GP Family Office",
+      "sanitizedName": "gp-family-office",
+      "path": "gp-family-office",
+      "url": "https://trello.com/b/puZd4qXY/gp-family-office",
+      "lists": [
+        {
+          "id": "5c3764a8d43bd4641e5c7a23",
+          "name": "Incoming",
+          "sanitizedName": "incoming",
+          "path": "gp-family-office/incoming",
+          "cardCount": 0
+        },
+        {
+          "id": "5c35aeba09b35f8e481c887a",
+          "name": "Prioritized Projects",
+          "sanitizedName": "prioritized-projects",
+          "path": "gp-family-office/prioritized-projects",
+          "cardCount": 2
+        },
+        {
+          "id": "5c35aec26af9622bb204e353",
+          "name": "Current Tasks",
+          "sanitizedName": "current-tasks",
+          "path": "gp-family-office/current-tasks",
+          "cardCount": 4
+        },
+        {
+          "id": "5c3c1c2ebd58431b938aa5de",
+          "name": "Waiting",
+          "sanitizedName": "waiting",
+          "path": "gp-family-office/waiting",
+          "cardCount": 2
+        },
+        {
+          "id": "5c35af47065f670f2e488769",
+          "name": "Completed",
+          "sanitizedName": "completed",
+          "path": "gp-family-office/completed",
+          "cardCount": 16
+        },
+        {
+          "id": "601bf9f4fa018241e0bd50ed",
+          "name": "On Ice",
+          "sanitizedName": "on-ice",
+          "path": "gp-family-office/on-ice",
+          "cardCount": 11
+        }
+      ],
+      "totalCards": 35,
+      "lastUpdated": "2025-11-18T11:13:53.964Z"
+    }
+  ]
+}
+
