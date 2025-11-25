@@ -1,0 +1,646 @@
+# Trello Sync Configuration
+# Copy this file to trello-sync.yaml and configure your boards
+
+# Global settings
+obsidian_root: /Users/runar/Projects/runarp/GPkb/
+default_assets_folder: .local_assets/Trello
+
+# Board mappings
+# Available settings for each board:
+#   board_id: (required) Trello board ID
+#   board_name: (optional) Board name for reference
+#   enabled: (required) true/false to enable/disable syncing
+#   target_path: (required) Path template for card files
+#   assets_folder: (optional) Override default assets folder
+#   workspace_name: (optional) Workspace name for {org} substitution
+#
+# Path template variables:
+#   {org}   - Workspace/organization name (sanitized)
+#   {board} - Board name (sanitized)
+#   {column} - List/column name (sanitized)
+#   {card}  - Card name (sanitized, without .md extension)
+boards:
+  - board_id: "5e80a7da1f45e103a6341cc0"
+    board_name: "02 - BizDev"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5e8191234327c5543c46e3a6"
+    board_name: "02 - Dev Roadmap"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "60237173c7114319081f2647"
+    board_name: "7Stones HOA Concerns"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "625cd65bff5c526a957c92d5"
+    board_name: "7Stones Purchases"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "647932fbb7c17111e878da09"
+    board_name: "9B TRT Remodel"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5ee3417e5d27f00ce46022ea"
+    board_name: "Accounting - GP"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "642b525e22afd31057b95e68"
+    board_name: "Accounting - Projects"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "60a63793b47d9b8b1ba1615e"
+    board_name: "Alda - Market Making"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "631069e6b265b101fb4a14c0"
+    board_name: "Alda - Office"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6886eed4791a8a6809ba96d0"
+    board_name: "Assets - Lour - Vehicles"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "64a772a364d05bfc99840c76"
+    board_name: "BabyG Petursson"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "50628100e9f06606738ef12d"
+    board_name: "Beatrice"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5f9ff5aa14963339bd48e91c"
+    board_name: "Bhushan Kids Education"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5ded9c075c1e84205a177833"
+    board_name: "Boracay Projects"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "66b9e9ad9cc2c0ab2f85e7e0"
+    board_name: "Budapest - Outca"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5f3277a0184b3c334591f20d"
+    board_name: "Bulacan Project"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "655686cb14c72d9e4ddac5ae"
+    board_name: "California 2023 Activities"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "643dd0bc312c44736207f284"
+    board_name: "Canada 2023 Activities"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "53bbad57b423c95a53c38432"
+    board_name: "Coins"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "538c9b5977203cb41a4f24d5"
+    board_name: "Commitment Ceremony"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "50647723f60ba7f152a448aa"
+    board_name: "Company"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6524b64902b04792488ed6ff"
+    board_name: "Construction Projects"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "50628099e9f06606738eaeb4"
+    board_name: "Corporate"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "622ee347e68d3081ca7a3b1d"
+    board_name: "Crypto X Payments"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "53e8510d54de7709703fffc6"
+    board_name: "Ember Issues"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5cca512b36789641980b24a9"
+    board_name: "Family Accounting"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "60acc699d2fd8c48bea77233"
+    board_name: "Family Office - Allocation"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6432d401b4cf74d1917d8652"
+    board_name: "Family.pro Development Projects"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "608c114c49e1368d57a155ee"
+    board_name: "GP - Current investments"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6076cadc43b3ac07f2ee55e6"
+    board_name: "GP - Investment proposals"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "62e118d3c432f45418c24d56"
+    board_name: "GP - Legal"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5c35aeade878c43a9134927a"
+    board_name: "GP Family Office"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6708adbfb99b16d3ecb154cc"
+    board_name: "GP Forever"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5e1938d9b2aa857e12286aee"
+    board_name: "GP Iceland Office"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5d61f0b5fb12598ad2e232f6"
+    board_name: "GP/VB Planning"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "68bfe0685a812f7c67ffbd5d"
+    board_name: "Gym Build"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5063427980342da16e846d83"
+    board_name: "Happy EHF"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "54741970efa7365d114148a9"
+    board_name: "Hedged Bitcoin"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5da659b94d5931285ecfb4f6"
+    board_name: "HEK 2020"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6883ad3936cfc0debd3a2788"
+    board_name: "HEK 2025"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "64d8d926c583614474bc4af8"
+    board_name: "HEK House"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5f03d45650e9724271cfc796"
+    board_name: "HEK Projects"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6135f48b08ba970673b2d171"
+    board_name: "Hercules"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "618146035ca7e01b734bd1a9"
+    board_name: "Hercules Tasks"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5e0571100f66e01b2f2e226b"
+    board_name: "Iceland Family Office"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "62dfb4933a19cf12b899309c"
+    board_name: "Iceland Family Office"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "686f8838f2acb1ae83b586bb"
+    board_name: "Ilya's 40th Birthday"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "62cf79d622d9863670c5f47d"
+    board_name: "Incorporation"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5d2799623e0153515131f64b"
+    board_name: "Juliana House"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6539ece032da28941167642e"
+    board_name: "LAN Education"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5a49b5fe5553458df0cb9aa0"
+    board_name: "Legal Roadmap"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "62ade74aa42c1210a82dbecc"
+    board_name: "Life Planning"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5f85a73a456b654b38047778"
+    board_name: "Mabitac Project"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "67b7d0ecbe47cfdf3edb2f61"
+    board_name: "Makati Building Project"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "628aea098e2d9f68b4256658"
+    board_name: "Manatun 13 Project"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "622ea8c207189a1e6bc29b31"
+    board_name: "Manila Household"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5065dcce45086bec323c9a9e"
+    board_name: "MoE"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "50627b8de60412d64e98778d"
+    board_name: "Moving to Manila"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "686bc2538be0d35f1d479062"
+    board_name: "NGO"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5063d527ea7c7b3e77107bec"
+    board_name: "NRDS"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "615dec9be0824425bc19279f"
+    board_name: "OwnerMatters"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "62411e08b98b0c0fa21b4d0d"
+    board_name: "P@TheCurve"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5f8883699a49373f65c77e3d"
+    board_name: "Panorama and Land"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5dbb990a0b31ca050d02ae1c"
+    board_name: "Para-i-so hungry"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "50627a4c7fde61c50992826d"
+    board_name: "PDB/new Launch"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "50628054e9f06606738e7a2a"
+    board_name: "PDX"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "538d88eb36a5615e5d929025"
+    board_name: "Personal Tasks"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "606c888ab3141f89d05220ef"
+    board_name: "PHC Global - Rails"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6507c6793ff079958817e776"
+    board_name: "Potential Properties - Manila"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "53cc77a1695661fa2ad2fb12"
+    board_name: "Product Roadmap"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "62985a7b2922d716ff37cd70"
+    board_name: "Project Corp Documentation"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6434c950b226a19187b1e830"
+    board_name: "Purchasing - GP"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "634773aebfd3b701717e4340"
+    board_name: "RE 3901A - BKV"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "65c0903d46571ec6d22586a7"
+    board_name: "Rental Properties"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "686aad635aa6c28298a7fda0"
+    board_name: "Rúnar verkefni"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6124f2e4a58f2c1a98aa45c9"
+    board_name: "Select Tasks"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "67a1b26bb0414564d6e00354"
+    board_name: "Skyline Tee Holdings Corp"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "552b5d7d260f22ab6dbf44ca"
+    board_name: "SpecialAgent"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "62902a1a7017bf7a006f4e13"
+    board_name: "Spring 2022 Works"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "57147fa577826649e1af2c60"
+    board_name: "Sprint Compliance"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "56a1fa87d3fde26f38cd4c91"
+    board_name: "Sprint Current"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "571482c3aa3c6fd6b8779eb2"
+    board_name: "Sprint DevOps"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "57148553a3eed63e8d9b10c3"
+    board_name: "Sprint Metrics"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5714868eeeb048400b7b5e07"
+    board_name: "Sprint Operations"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "57148119f012625ffd1deee5"
+    board_name: "Sprint Phone Login"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "571486b79e4fd0427d4ac348"
+    board_name: "Sprint Product"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "56e90234ed49cbdbfd6d3cd3"
+    board_name: "Sprint Story Board"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6142e713ab55132b959e0a43"
+    board_name: "T8 Renovations"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "575d82a9ceec7caba440616e"
+    board_name: "T8 Úrbótalisti"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "540fdefb7686f1c27eb1edfb"
+    board_name: "Thai Website"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "61645b0fca4a8747dbc653e5"
+    board_name: "Trading Operations"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "673afa62db76dba96ed6d4f8"
+    board_name: "Travel Board"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "506357712fff0f5957711a31"
+    board_name: "Travels"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "682ac9f2fb405909196368ec"
+    board_name: "TRT 4A Renovation"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "506301ba13d43ecc32f75a2e"
+    board_name: "Urta.is"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5ca0a2388bbb3d4699a3b491"
+    board_name: "VB Family Office"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "67ec77499035b8b8edd111d4"
+    board_name: "Vince Projects"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5445a7bbf09c96c150d8cac6"
+    board_name: "Weekly"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "5dbbd50241e25087eb1036a8"
+    board_name: "Weekly Meal Planning"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "50627a20f6442dce329735c3"
+    board_name: "Welcome Board"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6042c6671513605d0998a052"
+    board_name: "z2 - Corporate"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "612f47d4da814d25c8947c28"
+    board_name: "z2 - Legal"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "609012bb0bde860378142d49"
+    board_name: "z2 - Office"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+
+  - board_id: "6042c75c8be1e78f1a5c4580"
+    board_name: "z2 Operations"
+    enabled: false
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    workspace_name: ""
+

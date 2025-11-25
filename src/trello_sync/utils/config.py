@@ -131,6 +131,76 @@ def resolve_path_template(template: str, variables: dict[str, str]) -> str:
     return result
 
 
+def save_config(config: dict[str, Any]) -> None:
+    """Save configuration to trello-sync.yaml with proper formatting.
+
+    Args:
+        config: Configuration dictionary to save.
+    """
+    config_path = get_config_path()
+    
+    # Ensure parent directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(config_path, 'w', encoding='utf-8') as f:
+        # Write header comments
+        f.write("# Trello Sync Configuration\n")
+        f.write("# Copy this file to trello-sync.yaml and configure your boards\n\n")
+        f.write("# Global settings\n")
+        
+        # Write global settings
+        if 'obsidian_root' in config and config['obsidian_root']:
+            f.write(f"obsidian_root: {config['obsidian_root']}\n")
+        if 'default_assets_folder' in config:
+            f.write(f"default_assets_folder: {config['default_assets_folder']}\n")
+        
+        f.write("\n# Board mappings\n")
+        f.write("# Available settings for each board:\n")
+        f.write("#   board_id: (required) Trello board ID\n")
+        f.write("#   board_name: (optional) Board name for reference\n")
+        f.write("#   org: (optional) Organization/workspace name for reference\n")
+        f.write("#   enabled: (required) true/false to enable/disable syncing\n")
+        f.write("#   target_path: (required) Path template for card files\n")
+        f.write("#   assets_folder: (optional) Override default assets folder\n")
+        f.write("#   workspace_name: (optional) Workspace name for {org} substitution\n")
+        f.write("#\n")
+        f.write("# Path template variables:\n")
+        f.write("#   {org}   - Workspace/organization name (sanitized)\n")
+        f.write("#   {board} - Board name (sanitized)\n")
+        f.write("#   {column} - List/column name (sanitized)\n")
+        f.write("#   {card}  - Card name (sanitized, without .md extension)\n")
+        f.write("boards:\n")
+        
+        # Write board entries with proper indentation
+        boards = config.get('boards', []) or []
+        for board_config in boards:
+            f.write("  - board_id: ")
+            f.write(f'"{board_config["board_id"]}"\n')
+            
+            if 'board_name' in board_config and board_config['board_name']:
+                f.write(f'    board_name: "{board_config["board_name"]}"\n')
+            
+            if 'org' in board_config and board_config['org']:
+                f.write(f'    org: "{board_config["org"]}"\n')
+            
+            f.write(f'    enabled: {str(board_config.get("enabled", False)).lower()}\n')
+            
+            if 'target_path' in board_config:
+                f.write(f'    target_path: "{board_config["target_path"]}"\n')
+            
+            if 'assets_folder' in board_config and board_config['assets_folder']:
+                f.write(f'    assets_folder: "{board_config["assets_folder"]}"\n')
+            
+            # Always include workspace_name, even if empty
+            workspace_name = board_config.get('workspace_name', '')
+            if workspace_name:
+                f.write(f'    workspace_name: "{workspace_name}"\n')
+            else:
+                f.write('    workspace_name: ""\n')
+            
+            f.write("\n")
+
+
 def validate_config() -> list[str]:
     """Validate configuration file.
 
