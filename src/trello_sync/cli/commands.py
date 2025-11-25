@@ -29,35 +29,85 @@ def cli() -> None:
 
 
 @cli.command()
-@click.argument('board_id')
+@click.argument('board_id', required=False)
 @click.option('--board-name', help='Board name (optional, will fetch if not provided)')
 @click.option('--workspace-name', help='Workspace name (optional, will fetch if not provided)')
 @click.option('--dry-run', is_flag=True, help='Show what would be synced without making changes')
 def sync(
-    board_id: str,
+    board_id: str | None,
     board_name: str | None,
     workspace_name: str | None,
     dry_run: bool,
 ) -> None:
-    """Sync a board to local files.
+    """Sync board(s) to local files.
+    
+    If board_id is provided, syncs that specific board.
+    If board_id is not provided, syncs all enabled boards from trello-sync.yaml.
 
     Args:
-        board_id: The ID of the board to sync.
+        board_id: Optional ID of the board to sync. If omitted, syncs all enabled boards.
         board_name: Optional board name.
         workspace_name: Optional workspace name.
         dry_run: If True, show what would be synced without making changes.
     """
     try:
         sync_client = TrelloSync()
-        click.echo(f"Syncing board: {board_id}")
         
-        stats = sync_client.sync_board(board_id, board_name, workspace_name, dry_run)
-        
-        click.echo(f"\n{'='*50}")
-        click.echo(f"Sync complete!")
-        click.echo(f"Total cards: {stats['total_cards']}")
-        click.echo(f"Synced: {stats['synced_cards']}")
-        click.echo(f"Skipped: {stats['skipped_cards']}")
+        if board_id:
+            # Sync specific board
+            click.echo(f"Syncing board: {board_id}")
+            stats = sync_client.sync_board(board_id, board_name, workspace_name, dry_run)
+            
+            click.echo(f"\n{'='*50}")
+            click.echo(f"Sync complete!")
+            click.echo(f"Total cards: {stats['total_cards']}")
+            click.echo(f"Synced: {stats['synced_cards']}")
+            click.echo(f"Skipped: {stats['skipped_cards']}")
+        else:
+            # Sync all enabled boards from config
+            config = load_config()
+            boards = config.get('boards', [])
+            enabled_boards = [b for b in boards if b.get('enabled', False)]
+            
+            if not enabled_boards:
+                click.echo("No enabled boards found in configuration.")
+                click.echo("Enable boards in trello-sync.yaml or provide a board_id.")
+                return
+            
+            click.echo(f"Syncing {len(enabled_boards)} enabled board(s) from configuration...\n")
+            
+            total_stats = {
+                'total_cards': 0,
+                'synced_cards': 0,
+                'skipped_cards': 0,
+            }
+            
+            for i, board_config in enumerate(enabled_boards, 1):
+                board_id = board_config.get('board_id')
+                board_name_config = board_config.get('board_name')
+                workspace_name_config = board_config.get('workspace_name')
+                
+                click.echo(f"[{i}/{len(enabled_boards)}] Syncing: {board_name_config or board_id}")
+                
+                stats = sync_client.sync_board(
+                    board_id,
+                    board_name_config,
+                    workspace_name_config,
+                    dry_run,
+                )
+                
+                total_stats['total_cards'] += stats['total_cards']
+                total_stats['synced_cards'] += stats['synced_cards']
+                total_stats['skipped_cards'] += stats['skipped_cards']
+                
+                click.echo(f"  ✓ {stats['synced_cards']} synced, {stats['skipped_cards']} skipped\n")
+            
+            click.echo(f"{'='*50}")
+            click.echo(f"Sync complete for all enabled boards!")
+            click.echo(f"Total cards: {total_stats['total_cards']}")
+            click.echo(f"Synced: {total_stats['synced_cards']}")
+            click.echo(f"Skipped: {total_stats['skipped_cards']}")
+            
     except ValueError as e:
         raise click.ClickException(str(e))
     except Exception as e:

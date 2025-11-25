@@ -427,6 +427,8 @@ class TrelloSync:
                                         asset_path,
                                         self.api_key,
                                         self.token,
+                                        card_id=card_id,
+                                        session=self.session,
                                     )
                                     
                                     # Get relative path for markdown
@@ -441,7 +443,14 @@ class TrelloSync:
                                     }
                                 except Exception as e:
                                     # Log warning but continue
-                                    print(f"Warning: Failed to download attachment {attachment_name}: {e}")
+                                    error_msg = str(e)
+                                    if "401" in error_msg or "Unauthorized" in error_msg:
+                                        print(
+                                            f"Warning: Failed to download attachment {attachment_name}: "
+                                            f"Authentication failed. Check that your Trello API token is valid and has access to this board."
+                                        )
+                                    else:
+                                        print(f"Warning: Failed to download attachment {attachment_name}: {e}")
                     
                     # Generate markdown with attachment info
                     markdown_content = generate_markdown(
