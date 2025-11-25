@@ -301,7 +301,9 @@ class TrelloSync:
                         full_card,
                         list_name,
                         board_name,
-                        workspace_name
+                        workspace_name,
+                        list_id=list_id,
+                        board_id=board_id
                     )
                     
                     # Write file
