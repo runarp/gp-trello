@@ -1,5 +1,6 @@
 """Tests for configuration utilities."""
 
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,197 +10,215 @@ import yaml
 from trello_sync.utils.config import (
     ConfigError,
     get_board_config,
+    get_config_path,
     get_obsidian_root,
-    get_obsidian_root_path,
     load_config,
     resolve_path_template,
     validate_config,
 )
 
 
-def test_load_config_nonexistent(tmp_path: Path) -> None:
-    """Test loading config from nonexistent file."""
-    config_path = tmp_path / "nonexistent.yaml"
-    config = load_config(config_path)
-    assert config == {}
-
-
-def test_load_config_valid(tmp_path: Path) -> None:
-    """Test loading valid config file."""
-    config_path = tmp_path / "trello-sync.yaml"
-    config_data = {
-        'obsidian_root': '/path/to/obsidian',
-        'boards': [
-            {'board_id': 'test123', 'enabled': True, 'target_path': 'path/{board}/{card}.md'},
-        ],
-    }
-    config_path.write_text(yaml.dump(config_data), encoding='utf-8')
-    
-    config = load_config(config_path)
-    assert config['obsidian_root'] == '/path/to/obsidian'
-    assert len(config['boards']) == 1
-
-
-def test_load_config_invalid_yaml(tmp_path: Path) -> None:
-    """Test loading invalid YAML file."""
-    config_path = tmp_path / "trello-sync.yaml"
-    config_path.write_text("invalid: yaml: content: [", encoding='utf-8')
-    
-    with pytest.raises(ConfigError, match="Invalid YAML"):
-        load_config(config_path)
-
-
-def test_validate_config_valid() -> None:
-    """Test validating valid config."""
-    config = {
-        'obsidian_root': '/path/to/obsidian',
-        'boards': [
-            {
-                'board_id': 'test123',
-                'enabled': True,
-                'target_path': 'path/{org}/{board}/{column}/{card}.md',
-            },
-        ],
-    }
-    errors = validate_config(config)
-    assert errors == []
-
-
-def test_validate_config_missing_board_id() -> None:
-    """Test validating config with missing board_id."""
-    config = {
-        'boards': [
-            {'enabled': True},
-        ],
-    }
-    errors = validate_config(config)
-    assert any('board_id' in error for error in errors)
-
-
-def test_validate_config_missing_template_vars() -> None:
-    """Test validating config with missing template variables."""
-    config = {
-        'boards': [
-            {
-                'board_id': 'test123',
-                'target_path': 'path/{board}.md',  # Missing {org}, {column}, {card}
-            },
-        ],
-    }
-    errors = validate_config(config)
-    assert len(errors) > 0
-    assert any('{org}' in error for error in errors)
-
-
-def test_get_board_config_found() -> None:
-    """Test getting board config that exists."""
-    config = {
-        'boards': [
-            {'board_id': 'test123', 'enabled': True, 'target_path': 'path/{board}/{card}.md'},
-            {'board_id': 'test456', 'enabled': False},
-        ],
-    }
-    
-    board_config = get_board_config('test123', config)
-    assert board_config is not None
-    assert board_config['board_id'] == 'test123'
-    assert board_config['enabled'] is True
-
-
-def test_get_board_config_disabled() -> None:
-    """Test getting board config that is disabled."""
-    config = {
-        'boards': [
-            {'board_id': 'test123', 'enabled': False},
-        ],
-    }
-    
-    board_config = get_board_config('test123', config)
-    assert board_config is None
-
-
-def test_get_board_config_not_found() -> None:
-    """Test getting board config that doesn't exist."""
-    config = {
-        'boards': [
-            {'board_id': 'test123', 'enabled': True},
-        ],
-    }
-    
-    board_config = get_board_config('nonexistent', config)
-    assert board_config is None
-
-
 def test_resolve_path_template() -> None:
-    """Test resolving path template."""
-    template = "path/{org}/{board}/{column}/{card}.md"
+    """Test path template resolution."""
+    template = "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
     variables = {
-        'org': 'My Org',
-        'board': 'My Board',
-        'column': 'My Column',
-        'card': 'My Card',
+        'org': 'test-org',
+        'board': 'test-board',
+        'column': 'test-column',
+        'card': 'test-card',
     }
     
     result = resolve_path_template(template, variables)
-    assert result == "path/My Org/My Board/My Column/My Card.md"
+    assert result == "20_tasks/Trello/test-org/test-board/test-column/test-card.md"
 
 
-def test_resolve_path_template_with_sanitize() -> None:
-    """Test resolving path template with sanitization."""
-    def sanitize(value: str) -> str:
-        return value.lower().replace(' ', '-')
+def test_load_config_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test loading config when file doesn't exist."""
+    monkeypatch.chdir(tmp_path)
     
-    template = "path/{org}/{board}.md"
-    variables = {
-        'org': 'My Org',
-        'board': 'My Board',
+    config = load_config()
+    
+    assert config['obsidian_root'] is None
+    assert config['default_assets_folder'] == '.local_assets/Trello'
+    assert config['boards'] == []
+
+
+def test_load_config_existing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test loading config from existing file."""
+    monkeypatch.chdir(tmp_path)
+    
+    config_data = {
+        'obsidian_root': '/test/obsidian',
+        'default_assets_folder': '.test_assets',
+        'boards': [
+            {
+                'board_id': 'board123',
+                'enabled': True,
+                'target_path': 'test/{board}/{card}.md',
+            }
+        ],
     }
     
-    result = resolve_path_template(template, variables, sanitize_func=sanitize)
-    assert result == "path/my-org/my-board.md"
+    config_file = tmp_path / 'trello-sync.yaml'
+    with open(config_file, 'w') as f:
+        yaml.dump(config_data, f)
+    
+    config = load_config()
+    
+    assert config['obsidian_root'] == '/test/obsidian'
+    assert config['default_assets_folder'] == '.test_assets'
+    assert len(config['boards']) == 1
+    assert config['boards'][0]['board_id'] == 'board123'
 
 
-@patch('trello_sync.utils.config.os.getenv')
-def test_get_obsidian_root_from_env(mock_getenv) -> None:
+def test_get_board_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test getting board configuration."""
+    monkeypatch.chdir(tmp_path)
+    
+    config_data = {
+        'boards': [
+            {
+                'board_id': 'board123',
+                'enabled': True,
+                'target_path': 'test/{board}/{card}.md',
+            },
+            {
+                'board_id': 'board456',
+                'enabled': False,
+            },
+        ],
+    }
+    
+    config_file = tmp_path / 'trello-sync.yaml'
+    with open(config_file, 'w') as f:
+        yaml.dump(config_data, f)
+    
+    board_config = get_board_config('board123')
+    assert board_config is not None
+    assert board_config['board_id'] == 'board123'
+    assert board_config['enabled'] is True
+    
+    board_config = get_board_config('board456')
+    assert board_config is not None
+    assert board_config['enabled'] is False
+    
+    board_config = get_board_config('nonexistent')
+    assert board_config is None
+
+
+def test_get_obsidian_root_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test getting Obsidian root from environment variable."""
-    mock_getenv.return_value = '/path/to/obsidian'
+    monkeypatch.chdir(tmp_path)
     
-    root = get_obsidian_root()
-    assert root == Path('/path/to/obsidian').expanduser().resolve()
-
-
-@patch('trello_sync.utils.config.os.getenv')
-def test_get_obsidian_root_not_set(mock_getenv) -> None:
-    """Test getting Obsidian root when not set."""
-    mock_getenv.return_value = None
+    obsidian_path = tmp_path / 'obsidian'
+    obsidian_path.mkdir()
     
-    root = get_obsidian_root()
-    assert root is None
-
-
-def test_get_obsidian_root_path_from_config() -> None:
-    """Test getting Obsidian root path from config."""
-    config = {'obsidian_root': '/path/to/obsidian'}
+    monkeypatch.setenv('OBSIDIAN_ROOT', str(obsidian_path))
     
-    with patch('trello_sync.utils.config.load_config', return_value=config):
-        root = get_obsidian_root_path()
-        assert root == Path('/path/to/obsidian').expanduser().resolve()
+    result = get_obsidian_root()
+    assert result == obsidian_path
 
 
-@patch('trello_sync.utils.config.get_obsidian_root')
-def test_get_obsidian_root_path_from_env(mock_get_obsidian) -> None:
-    """Test getting Obsidian root path from environment."""
-    mock_get_obsidian.return_value = Path('/path/to/obsidian')
+def test_get_obsidian_root_from_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test getting Obsidian root from config file."""
+    monkeypatch.chdir(tmp_path)
     
-    with patch('trello_sync.utils.config.load_config', return_value={}):
-        root = get_obsidian_root_path()
-        assert root == Path('/path/to/obsidian')
+    obsidian_path = tmp_path / 'obsidian'
+    obsidian_path.mkdir()
+    
+    config_data = {
+        'obsidian_root': str(obsidian_path),
+    }
+    
+    config_file = tmp_path / 'trello-sync.yaml'
+    with open(config_file, 'w') as f:
+        yaml.dump(config_data, f)
+    
+    result = get_obsidian_root()
+    assert result == obsidian_path
 
 
-def test_get_obsidian_root_path_not_configured() -> None:
-    """Test getting Obsidian root path when not configured."""
-    with patch('trello_sync.utils.config.load_config', return_value={}):
-        with patch('trello_sync.utils.config.get_obsidian_root', return_value=None):
-            with pytest.raises(ConfigError, match="Obsidian root not configured"):
-                get_obsidian_root_path()
+def test_get_obsidian_root_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test getting Obsidian root when not configured."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv('OBSIDIAN_ROOT', raising=False)
+    
+    with pytest.raises(ConfigError, match="OBSIDIAN_ROOT not set"):
+        get_obsidian_root()
+
+
+def test_get_obsidian_root_nonexistent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test getting Obsidian root when path doesn't exist."""
+    monkeypatch.chdir(tmp_path)
+    
+    nonexistent_path = tmp_path / 'nonexistent'
+    monkeypatch.setenv('OBSIDIAN_ROOT', str(nonexistent_path))
+    
+    with pytest.raises(ConfigError, match="does not exist"):
+        get_obsidian_root()
+
+
+def test_validate_config_valid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test validating valid configuration."""
+    monkeypatch.chdir(tmp_path)
+    
+    config_data = {
+        'boards': [
+            {
+                'board_id': 'board123',
+                'target_path': 'test/{org}/{board}/{column}/{card}.md',
+            }
+        ],
+    }
+    
+    config_file = tmp_path / 'trello-sync.yaml'
+    with open(config_file, 'w') as f:
+        yaml.dump(config_data, f)
+    
+    errors = validate_config()
+    assert len(errors) == 0
+
+
+def test_validate_config_missing_variables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test validating config with missing template variables."""
+    monkeypatch.chdir(tmp_path)
+    
+    config_data = {
+        'boards': [
+            {
+                'board_id': 'board123',
+                'target_path': 'test/{org}/{board}.md',  # Missing {column} and {card}
+            }
+        ],
+    }
+    
+    config_file = tmp_path / 'trello-sync.yaml'
+    with open(config_file, 'w') as f:
+        yaml.dump(config_data, f)
+    
+    errors = validate_config()
+    assert len(errors) > 0
+    assert any('{column}' in error for error in errors)
+    assert any('{card}' in error for error in errors)
+
+
+def test_validate_config_missing_board_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test validating config with missing board_id."""
+    monkeypatch.chdir(tmp_path)
+    
+    config_data = {
+        'boards': [
+            {
+                'target_path': 'test/{org}/{board}/{column}/{card}.md',
+            }
+        ],
+    }
+    
+    config_file = tmp_path / 'trello-sync.yaml'
+    with open(config_file, 'w') as f:
+        yaml.dump(config_data, f)
+    
+    errors = validate_config()
+    assert len(errors) > 0
+    assert any('board_id' in error.lower() for error in errors)
 

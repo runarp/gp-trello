@@ -1,11 +1,16 @@
 """CLI command definitions for Trello sync."""
 
+import os
+from pathlib import Path
+
 import click
+import yaml
 from dotenv import load_dotenv
 
 from trello_sync.services.trello_sync import TrelloSync
 from trello_sync.utils.config import (
     ConfigError,
+    get_config_path,
     get_obsidian_root,
     load_config,
     validate_config,
@@ -46,18 +51,11 @@ def sync(
         
         stats = sync_client.sync_board(board_id, board_name, workspace_name, dry_run)
         
-        if stats['total_cards'] == 0:
-            click.echo(f"\n⚠ Board {board_id} is not configured or has no cards to sync.")
-            click.echo("Use 'trello-sync config-add {board_id}' to configure this board.")
-            return
-        
         click.echo(f"\n{'='*50}")
         click.echo(f"Sync complete!")
         click.echo(f"Total cards: {stats['total_cards']}")
         click.echo(f"Synced: {stats['synced_cards']}")
         click.echo(f"Skipped: {stats['skipped_cards']}")
-    except ConfigError as e:
-        raise click.ClickException(f"Configuration error: {e}")
     except ValueError as e:
         raise click.ClickException(str(e))
     except Exception as e:
@@ -113,110 +111,176 @@ def show_board(board_id: str) -> None:
 def config() -> None:
     """Show current configuration."""
     try:
-        config_data = load_config()
-        obsidian_root = get_obsidian_root()
+        config = load_config()
+        config_path = get_config_path()
         
-        click.echo("\nConfiguration:")
-        click.echo("=" * 50)
+        click.echo(f"\nConfiguration file: {config_path}")
+        click.echo(f"Exists: {config_path.exists()}\n")
         
-        if obsidian_root:
-            click.echo(f"OBSIDIAN_ROOT (env): {obsidian_root}")
-        else:
-            click.echo("OBSIDIAN_ROOT (env): Not set")
-        
-        if config_data.get('obsidian_root'):
-            click.echo(f"obsidian_root (config): {config_data['obsidian_root']}")
-        
-        if config_data.get('default_assets_folder'):
-            click.echo(f"default_assets_folder: {config_data['default_assets_folder']}")
-        
-        boards = config_data.get('boards', [])
-        click.echo(f"\nConfigured boards: {len(boards)}")
-        for board in boards:
-            enabled = "✓" if board.get('enabled', True) else "✗"
-            click.echo(f"  {enabled} {board.get('board_id', 'unknown')}")
-            if board.get('target_path'):
-                click.echo(f"    Path: {board['target_path']}")
+        # Show Obsidian root
+        try:
+            obsidian_root = get_obsidian_root()
+            click.echo(f"Obsidian Root: {obsidian_root}")
+        except ConfigError as e:
+            click.echo(f"Obsidian Root: Not configured ({e})")
         click.echo()
+        
+        # Show default assets folder
+        default_assets = config.get('default_assets_folder', '.local_assets/Trello')
+        click.echo(f"Default Assets Folder: {default_assets}")
+        click.echo()
+        
+        # Show board configurations
+        boards = config.get('boards', [])
+        click.echo(f"Configured Boards: {len(boards)}\n")
+        
+        for board_config in boards:
+            board_id = board_config.get('board_id', 'unknown')
+            enabled = board_config.get('enabled', True)
+            target_path = board_config.get('target_path', 'N/A')
+            workspace = board_config.get('workspace_name', 'N/A')
+            
+            status = "enabled" if enabled else "disabled"
+            click.echo(f"  Board ID: {board_id}")
+            click.echo(f"    Status: {status}")
+            click.echo(f"    Target Path: {target_path}")
+            click.echo(f"    Workspace: {workspace}")
+            click.echo()
+        
+        if not boards:
+            click.echo("  No boards configured.")
+            click.echo("  Use 'trello-sync config-add <board-id>' to add a board.")
+            click.echo()
+            
     except ConfigError as e:
         raise click.ClickException(str(e))
     except Exception as e:
-        raise click.ClickException(f"Error reading config: {e}")
+        raise click.ClickException(f"Error loading config: {e}")
+
+
+@cli.command()
+@click.argument('board_id')
+@click.option('--target-path', help='Target path template (e.g., "20_tasks/Trello/{org}/{board}/{column}/{card}.md")')
+@click.option('--workspace-name', help='Workspace name for path substitution')
+@click.option('--assets-folder', help='Assets folder template (optional)')
+@click.option('--enabled/--disabled', default=True, help='Enable or disable this board')
+def config_add(
+    board_id: str,
+    target_path: str | None,
+    workspace_name: str | None,
+    assets_folder: str | None,
+    enabled: bool,
+) -> None:
+    """Add or update board configuration.
+    
+    Args:
+        board_id: The Trello board ID to configure.
+    """
+    try:
+        config_path = get_config_path()
+        
+        # Load existing config
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f) or {}
+        else:
+            config = {
+                'obsidian_root': None,
+                'default_assets_folder': '.local_assets/Trello',
+                'boards': [],
+            }
+        
+        # Get board info if not provided
+        if not target_path:
+            sync_client = TrelloSync()
+            board = sync_client.get_board(board_id)
+            board_name = board.get('name', 'Unknown Board')
+            org = board.get('organization', {})
+            org_name = org.get('displayName', '') if org else ''
+            
+            if not workspace_name:
+                workspace_name = org_name
+            
+            # Suggest default path
+            default_path = '20_tasks/Trello/{org}/{board}/{column}/{card}.md'
+            click.echo(f"\nBoard: {board_name}")
+            if workspace_name:
+                click.echo(f"Workspace: {workspace_name}")
+            click.echo(f"\nSuggested target path: {default_path}")
+            target_path = click.prompt("Target path template", default=default_path)
+        
+        if not workspace_name:
+            workspace_name = click.prompt("Workspace name (for {org} substitution)", default='')
+        
+        # Find existing board config
+        boards = config.get('boards', [])
+        board_index = None
+        for i, board_config in enumerate(boards):
+            if board_config.get('board_id') == board_id:
+                board_index = i
+                break
+        
+        # Create or update board config
+        board_config = {
+            'board_id': board_id,
+            'enabled': enabled,
+            'target_path': target_path,
+        }
+        
+        if workspace_name:
+            board_config['workspace_name'] = workspace_name
+        
+        if assets_folder:
+            board_config['assets_folder'] = assets_folder
+        
+        if board_index is not None:
+            boards[board_index] = board_config
+            click.echo(f"\nUpdated configuration for board {board_id}")
+        else:
+            boards.append(board_config)
+            click.echo(f"\nAdded configuration for board {board_id}")
+        
+        config['boards'] = boards
+        
+        # Write config file
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_path, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        
+        click.echo(f"Configuration saved to {config_path}")
+        
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        raise click.ClickException(f"Error adding config: {e}")
 
 
 @cli.command()
 def config_validate() -> None:
     """Validate configuration file."""
     try:
-        config_data = load_config()
-        errors = validate_config(config_data)
+        errors = validate_config()
         
         if errors:
-            click.echo("Configuration errors found:")
+            click.echo("\nConfiguration validation failed:\n")
             for error in errors:
-                click.echo(f"  ✗ {error}")
-            raise click.ClickException("Configuration validation failed")
+                click.echo(f"  ❌ {error}")
+            click.echo()
+            raise click.ClickException("Configuration is invalid")
         else:
-            click.echo("✓ Configuration is valid")
+            click.echo("\n✅ Configuration is valid!\n")
+            
+            # Show additional info
+            try:
+                obsidian_root = get_obsidian_root()
+                click.echo(f"Obsidian Root: {obsidian_root}")
+                click.echo(f"  Exists: {obsidian_root.exists()}")
+                click.echo()
+            except ConfigError as e:
+                click.echo(f"⚠️  Obsidian Root: {e}\n")
+            
     except ConfigError as e:
         raise click.ClickException(str(e))
     except Exception as e:
         raise click.ClickException(f"Error validating config: {e}")
-
-
-@cli.command()
-@click.argument('board_id')
-def config_add(board_id: str) -> None:
-    """Add a board to configuration (interactive).
-
-    Args:
-        board_id: The ID of the board to configure.
-    """
-    try:
-        sync_client = TrelloSync()
-        board = sync_client.get_board(board_id)
-        board_name = board['name']
-        workspace_name = board.get('organization', {}).get('displayName', '')
-        
-        click.echo(f"\nConfiguring board: {board_name}")
-        click.echo(f"Board ID: {board_id}")
-        click.echo(f"Workspace: {workspace_name}")
-        
-        # Get target path
-        default_path = "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
-        target_path = click.prompt(
-            "Target path template",
-            default=default_path,
-            type=str,
-        )
-        
-        # Get assets folder
-        default_assets = ".local_assets/Trello/{org}/{board}"
-        assets_folder = click.prompt(
-            "Assets folder template",
-            default=default_assets,
-            type=str,
-        )
-        
-        click.echo("\nConfiguration to add:")
-        click.echo(f"  board_id: {board_id}")
-        click.echo(f"  enabled: true")
-        click.echo(f"  target_path: {target_path}")
-        click.echo(f"  assets_folder: {assets_folder}")
-        if workspace_name:
-            click.echo(f"  workspace_name: {workspace_name}")
-        
-        if click.confirm("\nAdd this configuration?"):
-            click.echo("\nPlease add this to your trello-sync.yaml file:")
-            click.echo("  boards:")
-            click.echo(f"    - board_id: \"{board_id}\"")
-            click.echo(f"      enabled: true")
-            click.echo(f"      target_path: \"{target_path}\"")
-            click.echo(f"      assets_folder: \"{assets_folder}\"")
-            if workspace_name:
-                click.echo(f"      workspace_name: \"{workspace_name}\"")
-    except ValueError as e:
-        raise click.ClickException(str(e))
-    except Exception as e:
-        raise click.ClickException(f"Error adding config: {e}")
 

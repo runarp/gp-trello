@@ -1,93 +1,92 @@
-"""Attachment download and management service."""
+"""Attachment download service for Trello cards."""
 
-import mimetypes
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 import requests
 
-# Image extensions that should be rendered inline
-IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'}
+from trello_sync.utils.formatting import sanitize_file_name
 
 
-def is_image_file(filename: str | None, mime_type: str | None = None) -> bool:
+def is_image_file(filename: str, mime_type: str | None = None) -> bool:
     """Check if a file is an image based on extension or MIME type.
 
     Args:
-        filename: File name or path.
-        mime_type: Optional MIME type.
+        filename: The filename to check.
+        mime_type: Optional MIME type of the file.
 
     Returns:
-        True if file is an image, False otherwise.
+        True if the file is an image, False otherwise.
     """
-    if filename:
-        ext = Path(filename).suffix.lower()
-        if ext in IMAGE_EXTENSIONS:
-            return True
-
-    if mime_type:
-        return mime_type.startswith('image/')
-
+    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'}
+    image_mime_types = {
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'image/svg+xml', 'image/bmp', 'image/x-icon', 'image/vnd.microsoft.icon'
+    }
+    
+    # Check by extension
+    ext = Path(filename).suffix.lower()
+    if ext in image_extensions:
+        return True
+    
+    # Check by MIME type
+    if mime_type and mime_type.lower() in image_mime_types:
+        return True
+    
     return False
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize filename for filesystem.
+    """Sanitize a filename for filesystem storage.
 
     Args:
-        filename: Original filename.
+        filename: The original filename.
 
     Returns:
         Sanitized filename safe for filesystem.
     """
-    # Remove path components
-    filename = Path(filename).name
-
-    # Replace problematic characters
-    filename = filename.replace(' ', '-')
-    filename = ''.join(c if c.isalnum() or c in ('-', '_', '.') else '_' for c in filename)
-
-    # Remove multiple underscores/hyphens
-    while '--' in filename:
-        filename = filename.replace('--', '-')
-    while '__' in filename:
-        filename = filename.replace('__', '_')
-
-    # Limit length
-    if len(filename) > 200:
-        name, ext = filename.rsplit('.', 1) if '.' in filename else (filename, '')
-        filename = name[:200 - len(ext) - 1] + '.' + ext if ext else name[:200]
-
-    return filename or 'attachment'
+    # Use the existing sanitize_file_name but preserve extension
+    name = Path(filename).stem
+    ext = Path(filename).suffix
+    
+    sanitized_name = sanitize_file_name(name)
+    
+    # Sanitize extension too
+    sanitized_ext = ''.join(c if c.isalnum() or c in ('.', '-', '_') else '' for c in ext)
+    
+    return sanitized_name + sanitized_ext
 
 
 def get_unique_filename(target_dir: Path, filename: str) -> Path:
-    """Get a unique filename in target directory, appending counter if needed.
+    """Get a unique filename in the target directory.
+
+    If the file already exists, append a counter.
 
     Args:
-        target_dir: Target directory.
-        filename: Desired filename.
+        target_dir: The target directory.
+        filename: The desired filename.
 
     Returns:
-        Path to unique filename.
+        Path to a unique filename.
     """
     target_path = target_dir / filename
+    
     if not target_path.exists():
         return target_path
-
-    # Append counter
+    
+    # File exists, append counter
     stem = target_path.stem
-    suffix = target_path.suffix
+    ext = target_path.suffix
     counter = 1
+    
     while True:
-        new_filename = f"{stem}_{counter}{suffix}"
+        new_filename = f"{stem}_{counter}{ext}"
         new_path = target_dir / new_filename
         if not new_path.exists():
             return new_path
         counter += 1
-        if counter > 1000:  # Safety limit
-            raise ValueError(f"Could not find unique filename for {filename}")
 
 
 def download_attachment(
@@ -96,38 +95,38 @@ def download_attachment(
     api_key: str,
     token: str,
 ) -> Path:
-    """Download attachment from Trello to target path.
+    """Download an attachment from Trello.
 
     Args:
-        attachment_data: Trello attachment dictionary.
-        target_path: Target file path.
+        attachment_data: Attachment data from Trello API.
+        target_path: Where to save the file.
         api_key: Trello API key.
         token: Trello API token.
 
     Returns:
-        Path to downloaded file.
+        Path to the downloaded file.
 
     Raises:
-        requests.HTTPError: If download fails.
-        IOError: If file cannot be written.
+        requests.HTTPError: If the download fails.
+        IOError: If the file cannot be written.
     """
     url = attachment_data.get('url')
     if not url:
-        raise ValueError("Attachment has no URL")
-
-    # Ensure target directory exists
+        raise ValueError("Attachment data missing 'url' field")
+    
+    # Create parent directory if needed
     target_path.parent.mkdir(parents=True, exist_ok=True)
-
+    
     # Download file
     params = {'key': api_key, 'token': token}
-    response = requests.get(url, params=params, stream=True, timeout=30)
+    response = requests.get(url, params=params, stream=True)
     response.raise_for_status()
-
-    # Write to file
+    
+    # Write file
     with open(target_path, 'wb') as f:
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
-
+    
     return target_path
 
 
@@ -135,8 +134,8 @@ def get_asset_path(
     card_path: Path,
     attachment_name: str,
     assets_folder: Path,
-) -> tuple[Path, str]:
-    """Calculate asset path and relative path from card to asset.
+) -> Path:
+    """Calculate the path for an attachment asset.
 
     Args:
         card_path: Path to the card markdown file.
@@ -144,88 +143,34 @@ def get_asset_path(
         assets_folder: Base assets folder path.
 
     Returns:
-        Tuple of (absolute asset path, relative path from card to asset).
+        Path where the attachment should be stored.
     """
-    # Sanitize attachment name
+    # Sanitize the attachment name
     sanitized_name = sanitize_filename(attachment_name)
-
-    # Get unique filename in assets folder
-    asset_path = get_unique_filename(assets_folder, sanitized_name)
-
-    # Calculate relative path from card to asset
-    try:
-        relative_path = Path(asset_path).relative_to(card_path.parent)
-        relative_str = str(relative_path).replace('\\', '/')
-    except ValueError:
-        # If paths are on different drives, use absolute path
-        relative_str = str(asset_path)
-
-    return asset_path, relative_str
+    
+    # Ensure assets folder exists
+    assets_folder.mkdir(parents=True, exist_ok=True)
+    
+    # Return path in assets folder
+    return assets_folder / sanitized_name
 
 
-def process_attachments(
-    attachments: list[dict[str, Any]],
-    card_path: Path,
-    assets_folder: Path,
-    api_key: str,
-    token: str,
-) -> list[dict[str, Any]]:
-    """Process attachments: download files and prepare metadata.
+def get_relative_asset_path(card_path: Path, asset_path: Path) -> str:
+    """Get relative path from card to asset for markdown links.
 
     Args:
-        attachments: List of Trello attachment dictionaries.
         card_path: Path to the card markdown file.
-        assets_folder: Base assets folder for storing attachments.
-        api_key: Trello API key.
-        token: Trello API token.
+        asset_path: Path to the asset file.
 
     Returns:
-        List of processed attachment dictionaries with local_path and is_image fields.
+        Relative path string suitable for markdown.
     """
-    processed: list[dict[str, Any]] = []
-
-    for attachment in attachments:
-        # Only process uploaded files, not links
-        if not attachment.get('isUpload', False):
-            processed.append(attachment)
-            continue
-
-        attachment_name = attachment.get('name', 'untitled')
-        mime_type = attachment.get('mimeType', '')
-        url = attachment.get('url', '')
-
-        if not url:
-            processed.append(attachment)
-            continue
-
-        try:
-            # Calculate asset path
-            asset_path, relative_path = get_asset_path(
-                card_path,
-                attachment_name,
-                assets_folder,
-            )
-
-            # Download attachment
-            download_attachment(attachment, asset_path, api_key, token)
-
-            # Determine if it's an image
-            is_image = is_image_file(attachment_name, mime_type)
-
-            # Create processed attachment dict
-            processed_attachment = attachment.copy()
-            processed_attachment['local_path'] = relative_path
-            processed_attachment['is_image'] = is_image
-            processed_attachment['asset_path'] = str(asset_path)
-
-            processed.append(processed_attachment)
-
-        except Exception as e:
-            # Log error but continue with other attachments
-            # Store error in attachment dict for markdown generation
-            processed_attachment = attachment.copy()
-            processed_attachment['download_error'] = str(e)
-            processed.append(processed_attachment)
-
-    return processed
+    try:
+        # Get relative path
+        relative = os.path.relpath(asset_path, card_path.parent)
+        # Normalize path separators for markdown (use forward slashes)
+        return relative.replace('\\', '/')
+    except ValueError:
+        # If paths are on different drives (Windows), return absolute path
+        return str(asset_path)
 

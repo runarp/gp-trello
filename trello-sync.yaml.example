@@ -7,13 +7,16 @@ default_assets_folder: ".local_assets/Trello"  # Relative to obsidian_root
 
 # Board mappings
 boards:
-  - board_id: "your_board_id_here"
-    enabled: true
-    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
-    assets_folder: ".local_assets/Trello/{org}/{board}"  # Optional override
-    workspace_name: "Your Workspace Name"  # For path substitution
-  
-  # Example: Disabled board
-  # - board_id: "another_board_id"
-  #   enabled: false  # Skip this board
+  # Example board configuration
+  # - board_id: "your_board_id_here"
+  #   enabled: true
+  #   target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+  #   assets_folder: ".local_assets/Trello/{org}/{board}"  # Optional override
+  #   workspace_name: "Your Workspace Name"  # For path substitution
+
+# Path template variables:
+#   {org}   - Workspace/organization name (sanitized)
+#   {board} - Board name (sanitized)
+#   {column} - List/column name (sanitized)
+#   {card}  - Card name (sanitized, without .md extension)
 
