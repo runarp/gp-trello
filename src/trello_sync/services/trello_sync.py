@@ -7,6 +7,20 @@ from typing import Any
 
 import requests
 
+from trello_sync.services.attachments import (
+    download_attachment,
+    get_asset_path,
+    get_relative_asset_path,
+    get_unique_filename,
+    is_image_file,
+)
+from trello_sync.utils.config import (
+    ConfigError,
+    get_board_config,
+    get_obsidian_root,
+    load_config,
+    resolve_path_template,
+)
 from trello_sync.utils.formatting import sanitize_file_name
 from trello_sync.utils.markdown import generate_markdown
 
@@ -228,7 +242,30 @@ class TrelloSync:
 
         Returns:
             Dictionary with sync statistics: total_cards, synced_cards, skipped_cards.
+
+        Raises:
+            ConfigError: If board is not configured and configuration is required.
         """
+        # Check if board is configured
+        board_config = get_board_config(board_id)
+        
+        if not board_config:
+            # Board not configured - skip it
+            return {
+                'total_cards': 0,
+                'synced_cards': 0,
+                'skipped_cards': 0,
+            }
+        
+        if not board_config.get('enabled', True):
+            # Board is disabled - skip it
+            return {
+                'total_cards': 0,
+                'synced_cards': 0,
+                'skipped_cards': 0,
+            }
+        
+        # Get board and workspace info
         if not board_name:
             board_data = self.get_board(board_id)
             board_name = board_data['name']
@@ -236,11 +273,27 @@ class TrelloSync:
         if not workspace_name:
             board_data = self.get_board(board_id)
             workspace_name = board_data.get('organization', {}).get('displayName', '')
+            # Use config workspace_name if provided
+            if board_config.get('workspace_name'):
+                workspace_name = board_config['workspace_name']
         
-        # Default to data/ folder from project root
-        data_dir = Path('data')
-        board_dir = data_dir / sanitize_file_name(board_name)
-        board_dir.mkdir(parents=True, exist_ok=True)
+        # Get Obsidian root and resolve paths
+        try:
+            obsidian_root = get_obsidian_root()
+        except ConfigError:
+            raise ConfigError(
+                f"Board {board_id} is configured but OBSIDIAN_ROOT is not set. "
+                "Set it as an environment variable or in trello-sync.yaml"
+            )
+        
+        # Get target path template
+        target_path_template = board_config.get('target_path', '20_tasks/Trello/{org}/{board}/{column}/{card}.md')
+        
+        # Get assets folder template
+        assets_template = board_config.get('assets_folder')
+        if not assets_template:
+            global_config = load_config()
+            assets_template = global_config.get('default_assets_folder', '.local_assets/Trello')
         
         # Get lists
         lists = self.get_board_lists(board_id)
@@ -252,8 +305,6 @@ class TrelloSync:
         for list_data in lists:
             list_name = list_data['name']
             list_id = list_data['id']
-            list_dir = board_dir / sanitize_file_name(list_name)
-            list_dir.mkdir(parents=True, exist_ok=True)
             
             # Get cards in list
             cards = self.get_cards_in_list(list_id)
@@ -264,8 +315,16 @@ class TrelloSync:
                 card_name = card['name']
                 card_updated = card.get('dateLastActivity')
                 
-                card_filename = sanitize_file_name(card_name) + '.md'
-                card_path = list_dir / card_filename
+                # Resolve path template
+                path_vars = {
+                    'org': sanitize_file_name(workspace_name or 'unknown'),
+                    'board': sanitize_file_name(board_name),
+                    'column': sanitize_file_name(list_name),
+                    'card': sanitize_file_name(card_name),
+                }
+                
+                resolved_path = resolve_path_template(target_path_template, path_vars)
+                card_path = obsidian_root / resolved_path
                 
                 # Check if we should sync
                 if not self.should_sync_card(card_path, card_updated):
@@ -296,17 +355,64 @@ class TrelloSync:
                     # Also store as comments for compatibility
                     full_card['comments'] = comments
                     
-                    # Generate markdown
+                    # Download attachments and prepare asset paths
+                    downloaded_attachments: dict[str, dict[str, Any]] = {}
+                    
+                    # Resolve assets folder path
+                    assets_vars = {
+                        'org': sanitize_file_name(workspace_name or 'unknown'),
+                        'board': sanitize_file_name(board_name),
+                    }
+                    resolved_assets_template = resolve_path_template(assets_template, assets_vars)
+                    assets_folder = obsidian_root / resolved_assets_template
+                    
+                    for attachment in attachments:
+                        # Only download file attachments (not links)
+                        if attachment.get('isUpload', False):
+                            attachment_name = attachment.get('name', 'untitled')
+                            attachment_url = attachment.get('url', '')
+                            
+                            if attachment_url:
+                                try:
+                                    # Calculate asset path
+                                    asset_path = get_asset_path(card_path, attachment_name, assets_folder)
+                                    asset_path = get_unique_filename(assets_folder, asset_path.name)
+                                    
+                                    # Download attachment
+                                    download_attachment(
+                                        attachment,
+                                        asset_path,
+                                        self.api_key,
+                                        self.token,
+                                    )
+                                    
+                                    # Get relative path for markdown
+                                    relative_path = get_relative_asset_path(card_path, asset_path)
+                                    
+                                    # Store info for markdown generation
+                                    downloaded_attachments[attachment.get('id', '')] = {
+                                        'local_path': relative_path,
+                                        'is_image': is_image_file(attachment_name, attachment.get('mimeType')),
+                                        'original_url': attachment_url,
+                                        'name': attachment_name,
+                                    }
+                                except Exception as e:
+                                    # Log warning but continue
+                                    print(f"Warning: Failed to download attachment {attachment_name}: {e}")
+                    
+                    # Generate markdown with attachment info
                     markdown_content = generate_markdown(
                         full_card,
                         list_name,
                         board_name,
                         workspace_name,
                         list_id=list_id,
-                        board_id=board_id
+                        board_id=board_id,
+                        downloaded_attachments=downloaded_attachments,
                     )
                     
-                    # Write file
+                    # Create directory and write file
+                    card_path.parent.mkdir(parents=True, exist_ok=True)
                     card_path.write_text(markdown_content, encoding='utf-8')
                     synced_cards += 1
                     

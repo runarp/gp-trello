@@ -78,7 +78,7 @@ See `process-next-card.md` for detailed workflow and list IDs.
 
 ## Python CLI Sync Tool
 
-A Python CLI tool provides a convenient way to sync Trello boards locally.
+A Python CLI tool provides a convenient way to sync Trello boards locally with configurable folder structures and attachment handling.
 
 ### Installation
 
@@ -109,26 +109,124 @@ python -m trello_sync.cli sync <board-id>
 
 # Dry run to see what would be synced
 python -m trello_sync.cli sync <board-id> --dry-run
-
-# Sync with optional board/workspace names
-python -m trello_sync.cli sync <board-id> --board-name "My Board" --workspace-name "My Workspace"
 ```
 
-### Features
-
-- **One-way sync**: Downloads cards from Trello to local markdown files
-- **Incremental sync**: Compares file modification time to card update time - only syncs changed cards
-- **Default data folder**: All synced boards are stored in `data/` folder from project root
-- **Extendable commands**: Easy to add new commands (e.g., `push`, `diff`, etc.)
-- **Dry run mode**: Preview what would be synced without making changes
-
 ### Configuration
+
+#### Credentials
 
 The tool reads credentials from `.env` file:
 - `TRELLO_API_KEY` - Your Trello API key
 - `TRELLO_TOKEN` - Your Trello API token
 
 The `.env` file is automatically loaded from the project root.
+
+#### Board-to-Folder Mapping
+
+Boards can be configured to sync to custom Obsidian-compatible directory structures using `trello-sync.yaml`.
+
+**Configuration File: `trello-sync.yaml`**
+
+```yaml
+# Global settings
+obsidian_root: null  # Optional, defaults to OBSIDIAN_ROOT env var
+default_assets_folder: ".local_assets/Trello"  # Relative to obsidian_root
+
+# Board mappings
+boards:
+  - board_id: "board_123"
+    enabled: true
+    target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+    assets_folder: ".local_assets/Trello/{org}/{board}"  # Optional override
+    workspace_name: "GP Family Office Workspace"  # For path substitution
+  
+  - board_id: "board_456"
+    enabled: false  # Skip this board
+```
+
+**Path Template Variables:**
+- `{org}` → Workspace/organization name (sanitized)
+- `{board}` → Board name (sanitized)
+- `{column}` → List/column name (sanitized)
+- `{card}` → Card name (sanitized, without .md extension)
+
+**Obsidian Root:**
+- Set via `OBSIDIAN_ROOT` environment variable (recommended)
+- Or set in `trello-sync.yaml` as `obsidian_root`
+- Config file overrides environment variable
+
+**Example Structure:**
+```
+[Obsidian-Root]/
+├── 20_tasks/
+│   └── Trello/
+│       └── GP-Family-Office-Workspace/
+│           └── GP-Family-Office/
+│               ├── Current-Tasks/
+│               │   ├── card-1.md
+│               │   └── card-2.md
+│               └── Completed/
+│                   └── card-3.md
+└── .local_assets/
+    └── Trello/
+        └── GP-Family-Office-Workspace/
+            └── GP-Family-Office/
+                ├── image-1.png
+                └── document.pdf
+```
+
+#### Configuration Management Commands
+
+```bash
+# Show current configuration
+trello-sync config
+
+# Add or update board configuration (interactive)
+trello-sync config-add <board-id>
+
+# Add board with options
+trello-sync config-add <board-id> \
+  --target-path "20_tasks/Trello/{org}/{board}/{column}/{card}.md" \
+  --workspace-name "My Workspace" \
+  --assets-folder ".local_assets/Trello/{org}/{board}"
+
+# Validate configuration file
+trello-sync config-validate
+```
+
+### Features
+
+- **One-way sync**: Downloads cards from Trello to local markdown files
+- **Incremental sync**: Compares file modification time to card update time - only syncs changed cards
+- **Configurable paths**: Map boards to custom Obsidian-compatible directory structures
+- **Attachment handling**: Downloads file attachments and stores them in a separate assets folder
+- **Inline images**: Images are rendered inline in Obsidian using `![alt](path)` syntax
+- **File links**: Other files are linked with `[filename](path)` syntax
+- **Unconfigured boards**: Boards not in config are skipped (no default sync location)
+- **Dry run mode**: Preview what would be synced without making changes
+
+### Attachment Handling
+
+Attachments are automatically downloaded and stored in the configured assets folder:
+
+- **Images** (jpg, png, gif, webp, svg, etc.): Rendered inline in markdown
+  ```markdown
+  ![Screenshot](.local_assets/Trello/Org/Board/screenshot.png)
+  *Original: [Screenshot](https://trello.com/...)*
+  ```
+
+- **Files** (pdf, docx, etc.): Linked in markdown
+  ```markdown
+  - [Document.pdf](.local_assets/Trello/Org/Board/document.pdf) (2.5 MB, added Jan 20, 2025)
+    Original: [Document.pdf](https://trello.com/...)
+  ```
+
+- **Links**: Kept as-is (not downloaded)
+  ```markdown
+  - [External Link](https://example.com) (added Jan 20, 2025)
+  ```
+
+Attachments are stored with sanitized filenames. If a file already exists, a counter is appended (e.g., `file_1.pdf`).
 
 ## Related Documentation
 

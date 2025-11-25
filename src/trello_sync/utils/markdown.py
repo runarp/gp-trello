@@ -87,6 +87,7 @@ def generate_markdown(
     workspace_name: str,
     list_id: str | None = None,
     board_id: str | None = None,
+    downloaded_attachments: dict[str, dict[str, Any]] | None = None,
 ) -> str:
     """Generate markdown content from card data.
 
@@ -97,10 +98,13 @@ def generate_markdown(
         workspace_name: Name of the workspace containing the board.
         list_id: Optional ID of the list containing the card.
         board_id: Optional ID of the board containing the card.
+        downloaded_attachments: Optional dict mapping attachment IDs to local path info.
 
     Returns:
         Complete markdown content as a string with frontmatter and body.
     """
+    if downloaded_attachments is None:
+        downloaded_attachments = {}
     # Extract checklist and checkitem IDs
     checklists = card_data.get('checklists', [])
     checklist_ids: dict[str, str] = {}
@@ -227,23 +231,73 @@ def generate_markdown(
     # Attachments
     attachments = card_data.get('attachments', [])
     if attachments:
-        files = [a for a in attachments if a.get('isUpload', False)]
-        links = [a for a in attachments if not a.get('isUpload', False)]
+        # Separate into images, files, and links
+        image_attachments: list[dict[str, Any]] = []
+        file_attachments: list[dict[str, Any]] = []
+        links: list[dict[str, Any]] = []
+        
+        for att in attachments:
+            if not att.get('isUpload', False):
+                links.append(att)
+            else:
+                att_id = att.get('id', '')
+                if att_id in downloaded_attachments:
+                    att_info = downloaded_attachments[att_id]
+                    if att_info.get('is_image', False):
+                        image_attachments.append({**att, '_local_info': att_info})
+                    else:
+                        file_attachments.append({**att, '_local_info': att_info})
+                else:
+                    # Fallback: treat as file if not downloaded
+                    file_attachments.append(att)
         
         body_lines.append('## Attachments')
         body_lines.append('')
         
-        if files:
-            body_lines.append('### Files')
-            for att in files:
+        # Images (inline)
+        if image_attachments:
+            body_lines.append('### Images')
+            for att in image_attachments:
                 name = att.get('name', 'Untitled')
-                url = att.get('url', '')
+                local_info = att.get('_local_info')
+                
+                if local_info:
+                    local_path = local_info.get('local_path', '')
+                    original_url = local_info.get('original_url', att.get('url', ''))
+                    # Inline image syntax for Obsidian
+                    body_lines.append(f'![{name}]({local_path})')
+                    if original_url:
+                        body_lines.append(f'*Original: [{name}]({original_url})*')
+                else:
+                    # Fallback to original URL
+                    url = att.get('url', '')
+                    body_lines.append(f'![{name}]({url})')
+                body_lines.append('')
+        
+        # Files (links)
+        if file_attachments:
+            body_lines.append('### Files')
+            for att in file_attachments:
+                name = att.get('name', 'Untitled')
+                local_info = att.get('_local_info')
                 bytes_val = att.get('bytes')
                 date = format_date(att.get('date', ''))
-                size_str = f" ({format_bytes(bytes_val)}, added {date})" if bytes_val else f" (added {date})" if date else ""
-                body_lines.append(f'- [{name}]({url}){size_str}')
+                
+                if local_info:
+                    local_path = local_info.get('local_path', '')
+                    original_url = local_info.get('original_url', att.get('url', ''))
+                    size_str = f" ({format_bytes(bytes_val)}, added {date})" if bytes_val else f" (added {date})" if date else ""
+                    body_lines.append(f'- [{name}]({local_path}){size_str}')
+                    if original_url:
+                        body_lines.append(f'  Original: [{name}]({original_url})')
+                else:
+                    # Fallback to original URL
+                    url = att.get('url', '')
+                    size_str = f" ({format_bytes(bytes_val)}, added {date})" if bytes_val else f" (added {date})" if date else ""
+                    body_lines.append(f'- [{name}]({url}){size_str}')
             body_lines.append('')
         
+        # Links
         if links:
             body_lines.append('### Links')
             for att in links:

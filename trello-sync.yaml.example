@@ -1,0 +1,22 @@
+# Trello Sync Configuration
+# Copy this file to trello-sync.yaml and configure your boards
+
+# Global settings
+obsidian_root: null  # Optional, defaults to OBSIDIAN_ROOT env var
+default_assets_folder: ".local_assets/Trello"  # Relative to obsidian_root
+
+# Board mappings
+boards:
+  # Example board configuration
+  # - board_id: "your_board_id_here"
+  #   enabled: true
+  #   target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
+  #   assets_folder: ".local_assets/Trello/{org}/{board}"  # Optional override
+  #   workspace_name: "Your Workspace Name"  # For path substitution
+
+# Path template variables:
+#   {org}   - Workspace/organization name (sanitized)
+#   {board} - Board name (sanitized)
+#   {column} - List/column name (sanitized)
+#   {card}  - Card name (sanitized, without .md extension)
+
