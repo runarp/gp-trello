@@ -49,7 +49,7 @@ def sanitize_filename(filename: str) -> str:
     """
     # Use the existing sanitize_file_name but preserve extension
     name = Path(filename).stem
-    ext = Path(filename).suffix
+    ext = Path(filename).suffix.lower()
     
     sanitized_name = sanitize_file_name(name)
     
