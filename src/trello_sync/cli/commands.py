@@ -518,8 +518,6 @@ def watching(output: str | None) -> None:
     except Exception as e:
         raise click.ClickException(f"Error generating watching file: {e}")
 
-<<<<<<< HEAD
-=======
 
 @cli.command()
 @click.option('--dry-run', is_flag=True, help='Show what would be updated without making changes')
@@ -558,6 +556,21 @@ def config_update(dry_run: bool) -> None:
         trello_by_id: dict[str, dict[str, Any]] = {}
         for board in trello_boards:
             trello_by_id[board['id']] = board
+        
+        # Collect unique organization IDs and fetch them once
+        org_ids = {board.get('idOrganization') for board in trello_boards if board.get('idOrganization')}
+        org_cache: dict[str, str] = {}  # org_id -> org_name
+        
+        if org_ids:
+            click.echo(f"Fetching organization details for {len(org_ids)} unique organization(s)...")
+            for org_id in org_ids:
+                try:
+                    org = sync_client._request('GET', f'organizations/{org_id}')
+                    org_name = org.get('displayName') or org.get('name', '')
+                    org_cache[org_id] = org_name
+                except Exception:
+                    # If we can't fetch org, cache empty string
+                    org_cache[org_id] = ''
         
         # Determine what needs to be added/removed/updated
         boards_to_add: list[str] = []
@@ -604,14 +617,13 @@ def config_update(dry_run: bool) -> None:
         new_boards: list[dict[str, Any]] = []
         updated_count = 0
         
-        click.echo("\nFetching board details...")
+        click.echo("\nProcessing new boards...")
         for board_id in boards_to_add:
             board = trello_by_id[board_id]
-            board_details = sync_client.get_board(board_id)
             
-            # Extract organization name
-            org = board_details.get('organization', {})
-            org_name = org.get('displayName', '') if org else ''
+            # Get organization name from cache
+            org_id = board.get('idOrganization')
+            org_name = org_cache.get(org_id, '') if org_id else ''
             workspace_name = org_name
             
             new_board_config = {
@@ -619,11 +631,9 @@ def config_update(dry_run: bool) -> None:
                 'board_name': board['name'],
                 'enabled': False,
                 'target_path': '20_tasks/Trello/{org}/{board}/{column}/{card}.md',
+                'org': org_name,  # Always include org, even if empty
                 'workspace_name': workspace_name,
             }
-            
-            if org_name:
-                new_board_config['org'] = org_name
             
             new_boards.append(new_board_config)
             updated_count += 1
@@ -632,11 +642,10 @@ def config_update(dry_run: bool) -> None:
         # Update existing boards with latest info
         for board_id in boards_to_update:
             board = trello_by_id[board_id]
-            board_details = sync_client.get_board(board_id)
             
-            # Extract organization name
-            org = board_details.get('organization', {})
-            org_name = org.get('displayName', '') if org else ''
+            # Get organization name from cache
+            org_id = board.get('idOrganization')
+            org_name = org_cache.get(org_id, '') if org_id else ''
             workspace_name = org_name
             
             existing_config = existing_by_id[board_id]
@@ -644,11 +653,7 @@ def config_update(dry_run: bool) -> None:
             # Update board name and org info, but preserve other settings
             existing_config['board_name'] = board['name']
             existing_config['workspace_name'] = workspace_name
-            if org_name:
-                existing_config['org'] = org_name
-            elif 'org' in existing_config:
-                # Remove org if board no longer has one
-                del existing_config['org']
+            existing_config['org'] = org_name  # Always include org, even if empty
             
             # Ensure required fields exist
             if 'enabled' not in existing_config:
@@ -684,5 +689,3 @@ def config_update(dry_run: bool) -> None:
         raise click.ClickException(str(e))
     except Exception as e:
         raise click.ClickException(f"Error updating config: {e}")
-
->>>>>>> 9872aa0

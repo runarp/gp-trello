@@ -97,7 +97,19 @@ class TrelloSync:
         Returns:
             Board dictionary with details.
         """
-        return self._request('GET', f'boards/{board_id}')
+        board = self._request('GET', f'boards/{board_id}')
+        
+        # If board has idOrganization, fetch organization details
+        if board.get('idOrganization'):
+            try:
+                org_id = board['idOrganization']
+                org = self._request('GET', f'organizations/{org_id}')
+                board['organization'] = org
+            except Exception:
+                # If we can't fetch org, just continue without it
+                pass
+        
+        return board
 
     def get_board_lists(self, board_id: str) -> list[dict[str, Any]]:
         """Get all lists on a board.

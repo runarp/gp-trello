@@ -180,8 +180,9 @@ def save_config(config: dict[str, Any]) -> None:
             if 'board_name' in board_config and board_config['board_name']:
                 f.write(f'    board_name: "{board_config["board_name"]}"\n')
             
-            if 'org' in board_config and board_config['org']:
-                f.write(f'    org: "{board_config["org"]}"\n')
+            # Always include org field, even if empty (similar to workspace_name)
+            org_value = board_config.get('org', '')
+            f.write(f'    org: "{org_value}"\n')
             
             f.write(f'    enabled: {str(board_config.get("enabled", False)).lower()}\n')
             
