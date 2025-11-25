@@ -150,6 +150,52 @@ def generate_markdown(
                 'content_hash': content_hash,
             })
     
+    # Extract labels with color information (trello-tags)
+    labels_data = card_data.get('labels', [])
+    labels: list[dict[str, Any]] = []
+    for label in labels_data:
+        label_info: dict[str, Any] = {
+            'name': label.get('name', ''),
+        }
+        if label.get('color'):
+            label_info['color'] = label.get('color')
+        if label.get('id'):
+            label_info['id'] = label.get('id')
+        labels.append(label_info)
+    
+    # Extract members with full information (assigned to)
+    members_data = card_data.get('members', [])
+    members: list[dict[str, Any]] = []
+    for member in members_data:
+        member_info: dict[str, Any] = {
+            'fullName': member.get('fullName', ''),
+        }
+        if member.get('username'):
+            member_info['username'] = member.get('username')
+        if member.get('id'):
+            member_info['id'] = member.get('id')
+        if member.get('initials'):
+            member_info['initials'] = member.get('initials')
+        members.append(member_info)
+    
+    # Extract cover information if present
+    cover = card_data.get('cover')
+    cover_info: dict[str, Any] | None = None
+    if cover:
+        cover_info = {}
+        if cover.get('color'):
+            cover_info['color'] = cover.get('color')
+        if cover.get('brightness'):
+            cover_info['brightness'] = cover.get('brightness')
+        if cover.get('size'):
+            cover_info['size'] = cover.get('size')
+        if cover.get('idAttachment'):
+            cover_info['idAttachment'] = cover.get('idAttachment')
+        if cover.get('url'):
+            cover_info['url'] = cover.get('url')
+        if not cover_info:
+            cover_info = None
+    
     # Frontmatter
     frontmatter: dict[str, Any] = {
         'trello_board_card_id': card_data.get('id', ''),
@@ -159,12 +205,24 @@ def generate_markdown(
         'created': format_iso_date(card_data.get('dateCreated')),
         'updated': format_iso_date(card_data.get('dateLastActivity')),
         'list': list_name,
-        'labels': [l.get('name', '') for l in card_data.get('labels', [])],
-        'members': [m.get('fullName', '') for m in card_data.get('members', [])],
+        'labels': labels,
+        'members': members,
         'due-date': format_iso_date(card_data.get('due')),
         'attachments-count': len(card_data.get('attachments', [])),
         'comments-count': len(comments),
+        # Additional Trello UI metadata
+        'subscribed': card_data.get('subscribed', False),
+        'closed': card_data.get('closed', False),
+        'idShort': card_data.get('idShort'),
+        'shortUrl': card_data.get('shortUrl'),
+        'dueComplete': card_data.get('dueComplete', False),
+        'start': format_iso_date(card_data.get('start')),
+        'pos': card_data.get('pos'),
     }
+    
+    # Add cover if present
+    if cover_info:
+        frontmatter['cover'] = cover_info
     
     # Add Phase 2 frontmatter fields
     if checklist_ids:

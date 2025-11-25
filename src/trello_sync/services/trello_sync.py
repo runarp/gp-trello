@@ -133,7 +133,7 @@ class TrelloSync:
         params = {
             'fields': 'all',
             'members': 'true',
-            'member_fields': 'fullName,username',
+            'member_fields': 'fullName,username,id,initials',
             'checklists': 'all',
             'checklist_fields': 'all',
             'attachments': 'true',
@@ -183,7 +183,7 @@ class TrelloSync:
         Returns:
             List of member dictionaries.
         """
-        return self._request('GET', f'cards/{card_id}/members', {'fields': 'fullName,username'})
+        return self._request('GET', f'cards/{card_id}/members', {'fields': 'fullName,username,id,initials'})
 
     def get_card_checklists(self, card_id: str) -> list[dict[str, Any]]:
         """Get checklists for a card.

@@ -183,3 +183,74 @@ def test_generate_markdown_sync_status_fields() -> None:
     assert 'synced' in result
     # last_synced should not be present (None values are filtered out)
 
+
+def test_generate_markdown_trello_ui_metadata() -> None:
+    """Test that Trello UI metadata fields are included in frontmatter."""
+    card_data = {
+        'id': 'test123',
+        'name': 'Test Card',
+        'url': 'https://trello.com/c/test123',
+        'shortUrl': 'https://trello.com/c/abc123',
+        'idShort': 1621,
+        'desc': '',
+        'dateCreated': '2024-01-20T12:00:00Z',
+        'dateLastActivity': '2024-01-21T12:00:00Z',
+        'subscribed': True,
+        'closed': False,
+        'due': '2024-01-25T12:00:00Z',
+        'dueComplete': False,
+        'start': '2024-01-22T12:00:00Z',
+        'pos': 16384,
+        'labels': [
+            {'name': 'Important', 'color': 'red', 'id': 'label_id_1'},
+            {'name': 'Bug', 'color': 'orange', 'id': 'label_id_2'},
+            {'name': 'No Color Label', 'id': 'label_id_3'},
+        ],
+        'cover': {
+            'color': 'blue',
+            'brightness': 'light',
+            'size': 'normal',
+        },
+        'members': [
+            {'fullName': 'John Doe', 'username': 'johndoe', 'id': 'member_id_1', 'initials': 'JD'},
+            {'fullName': 'Jane Smith', 'username': 'janesmith', 'id': 'member_id_2'},
+        ],
+        'attachments': [],
+        'comments': [],
+        'checklists': [],
+    }
+    
+    result = generate_markdown(card_data, 'Test List', 'Test Board', 'Test Workspace')
+    
+    # Verify new metadata fields
+    assert 'subscribed: true' in result
+    assert 'closed: false' in result
+    assert 'idShort: 1621' in result
+    assert 'shortUrl:' in result
+    assert 'dueComplete: false' in result
+    assert 'start:' in result
+    assert 'pos: 16384' in result
+    
+    # Verify enhanced labels with colors
+    assert 'labels:' in result
+    assert 'name: "Important"' in result
+    assert 'color: "red"' in result
+    assert 'name: "Bug"' in result
+    assert 'color: "orange"' in result
+    assert 'name: "No Color Label"' in result
+    
+    # Verify enhanced members (assigned to)
+    assert 'members:' in result
+    assert 'fullName: "John Doe"' in result
+    assert 'username: "johndoe"' in result
+    assert 'id: "member_id_1"' in result
+    assert 'initials: "JD"' in result
+    assert 'fullName: "Jane Smith"' in result
+    assert 'username: "janesmith"' in result
+    
+    # Verify cover information
+    assert 'cover:' in result
+    assert 'color: "blue"' in result
+    assert 'brightness: "light"' in result
+    assert 'size: "normal"' in result
+
