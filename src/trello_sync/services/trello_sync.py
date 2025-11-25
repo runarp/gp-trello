@@ -7,6 +7,14 @@ from typing import Any
 
 import requests
 
+from trello_sync.services.attachments import process_attachments
+from trello_sync.utils.config import (
+    ConfigError,
+    get_board_config,
+    get_obsidian_root_path,
+    load_config,
+    resolve_path_template,
+)
 from trello_sync.utils.formatting import sanitize_file_name
 from trello_sync.utils.markdown import generate_markdown
 
@@ -228,20 +236,52 @@ class TrelloSync:
 
         Returns:
             Dictionary with sync statistics: total_cards, synced_cards, skipped_cards.
+
+        Raises:
+            ConfigError: If board is configured but Obsidian root is not set.
         """
-        if not board_name:
+        # Load configuration
+        config = load_config()
+        board_config = get_board_config(board_id, config)
+
+        # If board is not configured, skip it
+        if board_config is None:
+            return {
+                'total_cards': 0,
+                'synced_cards': 0,
+                'skipped_cards': 0,
+            }
+
+        # Get board and workspace info
+        if not board_name or not workspace_name:
             board_data = self.get_board(board_id)
-            board_name = board_data['name']
+            if not board_name:
+                board_name = board_data['name']
+            if not workspace_name:
+                workspace_name = board_data.get('organization', {}).get('displayName', '')
+                # Use workspace_name from config if provided
+                if not workspace_name and 'workspace_name' in board_config:
+                    workspace_name = board_config['workspace_name']
+
+        # Get Obsidian root path
+        try:
+            obsidian_root = get_obsidian_root_path(config)
+        except ConfigError:
+            # If not configured, skip this board
+            return {
+                'total_cards': 0,
+                'synced_cards': 0,
+                'skipped_cards': 0,
+            }
+
+        # Resolve target path template
+        target_path_template = board_config.get('target_path', '20_tasks/Trello/{org}/{board}/{column}/{card}.md')
         
-        if not workspace_name:
-            board_data = self.get_board(board_id)
-            workspace_name = board_data.get('organization', {}).get('displayName', '')
-        
-        # Default to data/ folder from project root
-        data_dir = Path('data')
-        board_dir = data_dir / sanitize_file_name(board_name)
-        board_dir.mkdir(parents=True, exist_ok=True)
-        
+        # Resolve assets folder template
+        assets_template = board_config.get('assets_folder')
+        if not assets_template:
+            assets_template = config.get('default_assets_folder', '.local_assets/Trello/{org}/{board}')
+
         # Get lists
         lists = self.get_board_lists(board_id)
         
@@ -252,8 +292,6 @@ class TrelloSync:
         for list_data in lists:
             list_name = list_data['name']
             list_id = list_data['id']
-            list_dir = board_dir / sanitize_file_name(list_name)
-            list_dir.mkdir(parents=True, exist_ok=True)
             
             # Get cards in list
             cards = self.get_cards_in_list(list_id)
@@ -264,8 +302,25 @@ class TrelloSync:
                 card_name = card['name']
                 card_updated = card.get('dateLastActivity')
                 
-                card_filename = sanitize_file_name(card_name) + '.md'
-                card_path = list_dir / card_filename
+                # Resolve path template variables
+                path_vars = {
+                    'org': workspace_name or 'Unknown',
+                    'board': board_name,
+                    'column': list_name,
+                    'card': card_name,
+                }
+                
+                # Resolve card path
+                card_path_str = resolve_path_template(
+                    target_path_template,
+                    path_vars,
+                    sanitize_func=sanitize_file_name,
+                )
+                card_path = obsidian_root / card_path_str
+                
+                # Ensure .md extension
+                if not card_path.suffix == '.md':
+                    card_path = card_path.with_suffix('.md')
                 
                 # Check if we should sync
                 if not self.should_sync_card(card_path, card_updated):
@@ -275,6 +330,18 @@ class TrelloSync:
                 if dry_run:
                     synced_cards += 1
                     continue
+                
+                # Resolve assets folder path
+                assets_vars = {
+                    'org': workspace_name or 'Unknown',
+                    'board': board_name,
+                }
+                assets_folder_str = resolve_path_template(
+                    assets_template,
+                    assets_vars,
+                    sanitize_func=sanitize_file_name,
+                )
+                assets_folder = obsidian_root / assets_folder_str
                 
                 # Get full card details
                 try:
@@ -287,9 +354,18 @@ class TrelloSync:
                     members = self.get_card_members(card_id)
                     checklists = self.get_card_checklists(card_id)
                     
+                    # Process attachments (download and prepare metadata)
+                    processed_attachments = process_attachments(
+                        attachments,
+                        card_path,
+                        assets_folder,
+                        self.api_key,
+                        self.token,
+                    )
+                    
                     # Merge data - store as actions for comment processing
                     full_card['actions'] = comments  # Comments come as actions
-                    full_card['attachments'] = attachments
+                    full_card['attachments'] = processed_attachments
                     full_card['labels'] = labels
                     full_card['members'] = members
                     full_card['checklists'] = checklists
@@ -306,7 +382,8 @@ class TrelloSync:
                         board_id=board_id
                     )
                     
-                    # Write file
+                    # Create directory structure and write file
+                    card_path.parent.mkdir(parents=True, exist_ok=True)
                     card_path.write_text(markdown_content, encoding='utf-8')
                     synced_cards += 1
                     

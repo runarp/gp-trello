@@ -227,23 +227,78 @@ def generate_markdown(
     # Attachments
     attachments = card_data.get('attachments', [])
     if attachments:
-        files = [a for a in attachments if a.get('isUpload', False)]
-        links = [a for a in attachments if not a.get('isUpload', False)]
+        # Separate into images, files, and links
+        images: list[dict[str, Any]] = []
+        files: list[dict[str, Any]] = []
+        links: list[dict[str, Any]] = []
+        
+        for att in attachments:
+            if not att.get('isUpload', False):
+                links.append(att)
+            elif att.get('is_image', False):
+                images.append(att)
+            else:
+                files.append(att)
         
         body_lines.append('## Attachments')
         body_lines.append('')
         
+        # Images - render inline
+        if images:
+            body_lines.append('### Images')
+            for att in images:
+                name = att.get('name', 'Untitled')
+                local_path = att.get('local_path', '')
+                url = att.get('url', '')
+                date = format_date(att.get('date', ''))
+                
+                if local_path:
+                    # Use inline image syntax
+                    body_lines.append(f'![{name}]({local_path})')
+                    if url:
+                        body_lines.append(f'*Original: [Trello URL]({url})*')
+                    if date:
+                        body_lines.append(f'*Added: {date}*')
+                elif url:
+                    # Fallback to Trello URL if download failed
+                    body_lines.append(f'![{name}]({url})')
+                    if date:
+                        body_lines.append(f'*Added: {date}*')
+                
+                # Show download error if present
+                if att.get('download_error'):
+                    body_lines.append(f'*Error downloading: {att["download_error"]}*')
+                
+                body_lines.append('')
+        
+        # Files - render as links
         if files:
             body_lines.append('### Files')
             for att in files:
                 name = att.get('name', 'Untitled')
+                local_path = att.get('local_path', '')
                 url = att.get('url', '')
                 bytes_val = att.get('bytes')
                 date = format_date(att.get('date', ''))
-                size_str = f" ({format_bytes(bytes_val)}, added {date})" if bytes_val else f" (added {date})" if date else ""
-                body_lines.append(f'- [{name}]({url}){size_str}')
-            body_lines.append('')
+                
+                if local_path:
+                    size_str = f" ({format_bytes(bytes_val)})" if bytes_val else ""
+                    date_str = f" (added {date})" if date else ""
+                    body_lines.append(f'- [{name}]({local_path}){size_str}{date_str}')
+                    if url:
+                        body_lines.append(f'  Original: [Trello URL]({url})')
+                elif url:
+                    size_str = f" ({format_bytes(bytes_val)})" if bytes_val else ""
+                    date_str = f" (added {date})" if date else ""
+                    body_lines.append(f'- [{name}]({url}){size_str}{date_str}')
+                
+                # Show download error if present
+                if att.get('download_error'):
+                    body_lines.append(f'  *Error downloading: {att["download_error"]}*')
+                
+                body_lines.append('')
         
+        # Links
         if links:
             body_lines.append('### Links')
             for att in links:
