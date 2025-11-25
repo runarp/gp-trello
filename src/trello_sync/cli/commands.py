@@ -256,6 +256,213 @@ def config_add(
 
 
 @cli.command()
+@click.option('--force', is_flag=True, help='Overwrite existing configuration (use with caution)')
+def config_init(force: bool) -> None:
+    """Initialize or update trello-sync.yaml with all accessible boards.
+    
+    This command:
+    - Fetches all boards accessible to your Trello account
+    - If config file exists: adds missing boards, removes deleted boards, preserves existing settings
+    - If config file doesn't exist: creates it with all boards (enabled: false by default)
+    
+    Existing board configurations (enabled, target_path, etc.) are preserved.
+    """
+    try:
+        config_path = get_config_path()
+        sync_client = TrelloSync()
+        
+        click.echo("Fetching boards from Trello...")
+        all_boards = sync_client.get_boards()
+        click.echo(f"Found {len(all_boards)} accessible boards\n")
+        
+        # Create board lookup by ID
+        trello_board_dict = {board['id']: board for board in all_boards}
+        trello_board_ids = set(trello_board_dict.keys())
+        
+        # Load existing config or create new
+        config_exists = config_path.exists()
+        
+        if config_exists and not force:
+            config = load_config()
+            existing_boards = config.get('boards') or []
+            
+            # Create lookup of existing board configs
+            existing_board_dict = {}
+            for board_config in existing_boards:
+                board_id = board_config.get('board_id')
+                if board_id:
+                    existing_board_dict[board_id] = board_config
+            
+            existing_board_ids = set(existing_board_dict.keys())
+            
+            # Find boards to add (in Trello but not in config)
+            boards_to_add = trello_board_ids - existing_board_ids
+            # Find boards to remove (in config but not in Trello)
+            boards_to_remove = existing_board_ids - trello_board_ids
+            
+            click.echo(f"Existing boards in config: {len(existing_board_ids)}")
+            click.echo(f"Boards to add: {len(boards_to_add)}")
+            click.echo(f"Boards to remove: {len(boards_to_remove)}\n")
+            
+            # Update existing boards with latest info (name, org) while preserving settings
+            updated_count = 0
+            for board_id, board_config in existing_board_dict.items():
+                if board_id in trello_board_dict:
+                    trello_board = trello_board_dict[board_id]
+                    board_details = sync_client.get_board(board_id)
+                    
+                    # Update board_name and org if changed
+                    new_name = trello_board.get('name', '')
+                    org = board_details.get('organization', {})
+                    org_name = org.get('displayName', '') if org else ''
+                    
+                    if board_config.get('board_name') != new_name:
+                        board_config['board_name'] = new_name
+                        updated_count += 1
+                    
+                    if board_config.get('org') != org_name:
+                        board_config['org'] = org_name
+                        updated_count += 1
+                    
+                    # Ensure workspace_name is set (for backward compatibility)
+                    if 'workspace_name' not in board_config:
+                        board_config['workspace_name'] = org_name
+            
+            # Add new boards
+            new_boards = []
+            for board_id in sorted(boards_to_add):
+                trello_board = trello_board_dict[board_id]
+                board_details = sync_client.get_board(board_id)
+                
+                org = board_details.get('organization', {})
+                org_name = org.get('displayName', '') if org else ''
+                
+                new_board = {
+                    'board_id': board_id,
+                    'board_name': trello_board.get('name', 'Unknown'),
+                    'enabled': False,
+                    'target_path': '20_tasks/Trello/{org}/{board}/{column}/{card}.md',
+                    'org': org_name,
+                    'workspace_name': org_name,  # For backward compatibility
+                }
+                new_boards.append(new_board)
+            
+            # Build final boards list: existing (updated) + new, excluding removed
+            final_boards = []
+            for board_id in sorted(trello_board_ids):
+                if board_id in existing_board_dict:
+                    final_boards.append(existing_board_dict[board_id])
+                elif board_id in boards_to_add:
+                    # Find the new board we just created
+                    new_board = next(b for b in new_boards if b['board_id'] == board_id)
+                    final_boards.append(new_board)
+            
+            config['boards'] = final_boards
+            
+            click.echo(f"Updated {updated_count} existing board(s)")
+            click.echo(f"Added {len(boards_to_add)} new board(s)")
+            if boards_to_remove:
+                click.echo(f"Removed {len(boards_to_remove)} deleted board(s)")
+            click.echo()
+            
+        else:
+            # Create new config file
+            click.echo("Creating new configuration file...\n")
+            
+            config = {
+                'obsidian_root': None,
+                'default_assets_folder': '.local_assets/Trello',
+                'boards': [],
+            }
+            
+            # Fetch details for all boards
+            boards = []
+            for i, board in enumerate(sorted(all_boards, key=lambda b: b.get('name', '')), 1):
+                board_id = board['id']
+                board_name = board.get('name', 'Unknown')
+                
+                click.echo(f"[{i}/{len(all_boards)}] Fetching details for: {board_name}")
+                board_details = sync_client.get_board(board_id)
+                
+                org = board_details.get('organization', {})
+                org_name = org.get('displayName', '') if org else ''
+                
+                boards.append({
+                    'board_id': board_id,
+                    'board_name': board_name,
+                    'enabled': False,
+                    'target_path': '20_tasks/Trello/{org}/{board}/{column}/{card}.md',
+                    'org': org_name,
+                    'workspace_name': org_name,  # For backward compatibility
+                })
+            
+            config['boards'] = boards
+            click.echo()
+        
+        # Write config file with proper formatting
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Prepare YAML content with comments
+        yaml_content = "# Trello Sync Configuration\n"
+        yaml_content += "# Copy this file to trello-sync.yaml and configure your boards\n\n"
+        yaml_content += "# Global settings\n"
+        
+        # Write global settings
+        if config.get('obsidian_root'):
+            yaml_content += f"obsidian_root: {config['obsidian_root']}\n"
+        else:
+            yaml_content += "obsidian_root: null  # Optional, defaults to OBSIDIAN_ROOT env var\n"
+        
+        yaml_content += f"default_assets_folder: {config.get('default_assets_folder', '.local_assets/Trello')}\n\n"
+        
+        # Write board mappings with comments
+        yaml_content += "# Board mappings\n"
+        yaml_content += "# Available settings for each board:\n"
+        yaml_content += "#   board_id: (required) Trello board ID\n"
+        yaml_content += "#   board_name: (optional) Board name for reference\n"
+        yaml_content += "#   org: (optional) Organization/workspace name for reference\n"
+        yaml_content += "#   enabled: (required) true/false to enable/disable syncing\n"
+        yaml_content += "#   target_path: (required) Path template for card files\n"
+        yaml_content += "#   assets_folder: (optional) Override default assets folder\n"
+        yaml_content += "#   workspace_name: (optional) Workspace name for {org} substitution (deprecated, use 'org')\n"
+        yaml_content += "#\n"
+        yaml_content += "# Path template variables:\n"
+        yaml_content += "#   {org}   - Workspace/organization name (sanitized)\n"
+        yaml_content += "#   {board} - Board name (sanitized)\n"
+        yaml_content += "#   {column} - List/column name (sanitized)\n"
+        yaml_content += "#   {card}  - Card name (sanitized, without .md extension)\n"
+        yaml_content += "boards:\n"
+        
+        # Write each board with proper indentation
+        for board in config.get('boards', []):
+            yaml_content += f"  - board_id: \"{board['board_id']}\"\n"
+            if board.get('board_name'):
+                yaml_content += f"    board_name: \"{board['board_name']}\"\n"
+            # Always include org field (even if empty) for consistency
+            org_value = board.get('org', '')
+            yaml_content += f"    org: \"{org_value}\"\n"
+            yaml_content += f"    enabled: {str(board.get('enabled', False)).lower()}\n"
+            yaml_content += f"    target_path: \"{board.get('target_path', '20_tasks/Trello/{org}/{board}/{column}/{card}.md')}\"\n"
+            if board.get('workspace_name'):
+                yaml_content += f"    workspace_name: \"{board['workspace_name']}\"\n"
+            if board.get('assets_folder'):
+                yaml_content += f"    assets_folder: \"{board['assets_folder']}\"\n"
+            yaml_content += "\n"
+        
+        # Write to file
+        with open(config_path, 'w', encoding='utf-8') as f:
+            f.write(yaml_content)
+        
+        click.echo(f"✅ Configuration saved to {config_path}")
+        click.echo(f"   Total boards: {len(config.get('boards', []))}\n")
+        
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        raise click.ClickException(f"Error initializing config: {e}")
+
+
+@cli.command()
 def config_validate() -> None:
     """Validate configuration file."""
     try:
@@ -283,4 +490,29 @@ def config_validate() -> None:
         raise click.ClickException(str(e))
     except Exception as e:
         raise click.ClickException(f"Error validating config: {e}")
+
+
+@cli.command()
+@click.option('--output', '-o', help='Output file path (default: watching.md in project root)')
+def watching(output: str | None) -> None:
+    """Generate watching.md file with all cards you are watching.
+    
+    This command queries the Trello API to find all cards across all boards
+    that you are subscribed to (watching), and generates a markdown table
+    with links to the local card files, board names, short links, and last
+    update times.
+    """
+    try:
+        sync_client = TrelloSync()
+        click.echo("Fetching watched cards from Trello...")
+        
+        output_path = Path(output) if output else None
+        result_path, card_count = sync_client.generate_watching_file(output_path)
+        
+        click.echo(f"\n✅ Generated watching.md file: {result_path}")
+        click.echo(f"   Found {card_count} watched cards")
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        raise click.ClickException(f"Error generating watching file: {e}")
 

@@ -135,12 +135,16 @@ default_assets_folder: ".local_assets/Trello"  # Relative to obsidian_root
 # Board mappings
 boards:
   - board_id: "board_123"
+    board_name: "My Board"  # Optional, for reference
+    org: "My Workspace"  # Optional, organization/workspace name
     enabled: true
     target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
     assets_folder: ".local_assets/Trello/{org}/{board}"  # Optional override
-    workspace_name: "GP Family Office Workspace"  # For path substitution
+    workspace_name: "GP Family Office Workspace"  # Deprecated, use 'org' instead
   
   - board_id: "board_456"
+    board_name: "Another Board"
+    org: ""  # Personal board (no workspace)
     enabled: false  # Skip this board
 ```
 
@@ -178,6 +182,17 @@ boards:
 #### Configuration Management Commands
 
 ```bash
+# Initialize or update configuration file with all accessible boards
+# This is a one-time setup command that:
+# - Fetches all boards from your Trello account
+# - Adds missing boards (with enabled: false by default)
+# - Removes boards that no longer exist
+# - Preserves existing board settings (enabled, target_path, etc.)
+trello-sync config-init
+
+# Force overwrite existing configuration (use with caution)
+trello-sync config-init --force
+
 # Show current configuration
 trello-sync config
 

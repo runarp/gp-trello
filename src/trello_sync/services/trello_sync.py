@@ -196,6 +196,37 @@ class TrelloSync:
         """
         return self._request('GET', f'cards/{card_id}/checklists', {'checkItems': 'all'})
 
+    def get_watched_cards(self) -> list[dict[str, Any]]:
+        """Get all cards that the authenticated user is watching across all boards.
+
+        Returns:
+            List of card dictionaries with board information.
+        """
+        watched_cards: list[dict[str, Any]] = []
+        boards = self.get_boards()
+        
+        for board in boards:
+            board_id = board['id']
+            board_name = board['name']
+            
+            # Get all cards on the board and filter by subscribed status
+            # Note: Trello API doesn't support filtering by subscribed directly,
+            # so we get all cards and filter client-side
+            cards = self._request('GET', f'boards/{board_id}/cards', {
+                'fields': 'id,name,shortUrl,shortLink,dateLastActivity,subscribed,idList'
+            })
+            
+            # Filter to only subscribed cards
+            subscribed_cards = [c for c in cards if c.get('subscribed', False)]
+            
+            # Add board info to each card
+            for card in subscribed_cards:
+                card['_board_name'] = board_name
+                card['_board_id'] = board_id
+                watched_cards.append(card)
+        
+        return watched_cards
+
     def should_sync_card(self, card_path: Path, card_updated: str | None) -> bool:
         """Check if card should be synced based on file modification time.
 
@@ -425,4 +456,141 @@ class TrelloSync:
             'synced_cards': synced_cards,
             'skipped_cards': skipped_cards,
         }
+
+    def generate_watching_file(self, output_path: Path | None = None) -> tuple[Path, int]:
+        """Generate a watching.md file listing all cards the user is watching.
+
+        Args:
+            output_path: Optional path to write the file. Defaults to watching.md in project root.
+
+        Returns:
+            Tuple of (path to generated file, number of watched cards).
+
+        Raises:
+            ConfigError: If required configuration is missing.
+        """
+        from trello_sync.utils.formatting import format_date
+        
+        # Get watched cards
+        watched_cards = self.get_watched_cards()
+        
+        # Sort by last activity date (most recent first)
+        watched_cards.sort(
+            key=lambda c: c.get('dateLastActivity', ''),
+            reverse=True
+        )
+        
+        # Get project root (where watching.md should be written)
+        if output_path is None:
+            # Try to find project root (where trello-sync.yaml might be)
+            from trello_sync.utils.config import get_config_path
+            config_path = get_config_path()
+            project_root = config_path.parent
+            output_path = project_root / 'watching.md'
+        else:
+            output_path = Path(output_path)
+            project_root = output_path.parent
+        
+        # Get Obsidian root for resolving local file paths
+        try:
+            obsidian_root = get_obsidian_root()
+        except ConfigError:
+            obsidian_root = None
+        
+        # Build markdown table
+        lines = ['# Watching', '', 'Cards you are watching across all Trello boards.', '']
+        
+        if not watched_cards:
+            lines.append('*No cards are currently being watched.*')
+            lines.append('')
+        else:
+            lines.append('| Card | Board | Short Link | Last Updated |')
+            lines.append('|------|-------|------------|--------------|')
+            
+            for card in watched_cards:
+                card_name = card.get('name', 'Untitled')
+                board_name = card.get('_board_name', 'Unknown Board')
+                short_link = card.get('shortLink', '')
+                short_url = card.get('shortUrl', '')
+                date_last_activity = card.get('dateLastActivity', '')
+                
+                # Try to find local file path
+                local_link = None
+                if obsidian_root:
+                    board_id = card.get('_board_id', '')
+                    board_config = get_board_config(board_id)
+                    
+                    if board_config:
+                        # Get list name from card
+                        list_id = card.get('idList', '')
+                        if list_id:
+                            try:
+                                lists = self.get_board_lists(board_id)
+                                list_data = next((l for l in lists if l['id'] == list_id), None)
+                                list_name = list_data['name'] if list_data else 'Unknown'
+                            except Exception:
+                                list_name = 'Unknown'
+                        else:
+                            list_name = 'Unknown'
+                        
+                        # Get workspace name
+                        workspace_name = board_config.get('workspace_name', '')
+                        if not workspace_name:
+                            try:
+                                board_data = self.get_board(board_id)
+                                workspace_name = board_data.get('organization', {}).get('displayName', '')
+                            except Exception:
+                                pass
+                        
+                        # Resolve path template
+                        target_path_template = board_config.get('target_path', '20_tasks/Trello/{org}/{board}/{column}/{card}.md')
+                        path_vars = {
+                            'org': sanitize_file_name(workspace_name or 'unknown'),
+                            'board': sanitize_file_name(board_name),
+                            'column': sanitize_file_name(list_name),
+                            'card': sanitize_file_name(card_name),
+                        }
+                        
+                        resolved_path = resolve_path_template(target_path_template, path_vars)
+                        card_path = obsidian_root / resolved_path
+                        
+                        # Check if file exists
+                        if card_path.exists():
+                            # Calculate relative path from project root to card file
+                            try:
+                                relative_path = card_path.relative_to(project_root)
+                                local_link = str(relative_path).replace('\\', '/')
+                            except ValueError:
+                                # Card is outside project root, use absolute or skip
+                                pass
+                
+                # Format card name with link
+                if local_link:
+                    card_display = f'[{card_name}]({local_link})'
+                elif short_url:
+                    card_display = f'[{card_name}]({short_url})'
+                else:
+                    card_display = card_name
+                
+                # Format short link
+                if short_link and short_url:
+                    short_link_display = f'[{short_link}]({short_url})'
+                elif short_link:
+                    short_link_display = short_link
+                else:
+                    short_link_display = '-'
+                
+                # Format date
+                date_display = format_date(date_last_activity) if date_last_activity else '-'
+                
+                # Add table row
+                lines.append(f'| {card_display} | {board_name} | {short_link_display} | {date_display} |')
+            
+            lines.append('')
+        
+        # Write file
+        content = '\n'.join(lines)
+        output_path.write_text(content, encoding='utf-8')
+        
+        return output_path, len(watched_cards)
 
