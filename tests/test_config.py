@@ -14,6 +14,7 @@ from trello_sync.utils.config import (
     get_obsidian_root,
     load_config,
     resolve_path_template,
+    save_config,
     validate_config,
 )
 
@@ -221,4 +222,95 @@ def test_validate_config_missing_board_id(tmp_path: Path, monkeypatch: pytest.Mo
     errors = validate_config()
     assert len(errors) > 0
     assert any('board_id' in error.lower() for error in errors)
+
+
+def test_save_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test saving configuration with proper formatting."""
+    monkeypatch.chdir(tmp_path)
+    
+    config = {
+        'obsidian_root': '/test/obsidian',
+        'default_assets_folder': '.test_assets',
+        'boards': [
+            {
+                'board_id': 'board123',
+                'board_name': 'Test Board',
+                'org': 'Test Org',
+                'enabled': True,
+                'target_path': 'test/{org}/{board}/{column}/{card}.md',
+                'workspace_name': 'Test Workspace',
+            },
+            {
+                'board_id': 'board456',
+                'board_name': 'Another Board',
+                'enabled': False,
+                'target_path': 'test/{org}/{board}/{column}/{card}.md',
+                'workspace_name': '',
+            },
+        ],
+    }
+    
+    save_config(config)
+    
+    # Verify file was created
+    config_file = tmp_path / 'trello-sync.yaml'
+    assert config_file.exists()
+    
+    # Load and verify
+    saved_config = load_config()
+    assert saved_config['obsidian_root'] == '/test/obsidian'
+    assert saved_config['default_assets_folder'] == '.test_assets'
+    assert len(saved_config['boards']) == 2
+    
+    # Verify first board
+    board1 = saved_config['boards'][0]
+    assert board1['board_id'] == 'board123'
+    assert board1['board_name'] == 'Test Board'
+    assert board1['org'] == 'Test Org'
+    assert board1['enabled'] is True
+    assert board1['workspace_name'] == 'Test Workspace'
+    
+    # Verify second board
+    board2 = saved_config['boards'][1]
+    assert board2['board_id'] == 'board456'
+    assert board2['board_name'] == 'Another Board'
+    assert board2['enabled'] is False
+    assert board2['workspace_name'] == ''
+
+
+def test_save_config_preserves_formatting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that save_config preserves existing board configurations."""
+    monkeypatch.chdir(tmp_path)
+    
+    # Create initial config
+    initial_config = {
+        'obsidian_root': '/test/obsidian',
+        'default_assets_folder': '.test_assets',
+        'boards': [
+            {
+                'board_id': 'board123',
+                'board_name': 'Test Board',
+                'enabled': True,
+                'target_path': 'custom/path/{org}/{board}/{column}/{card}.md',
+                'assets_folder': 'custom/assets/{org}/{board}',
+            },
+        ],
+    }
+    
+    save_config(initial_config)
+    
+    # Load and modify
+    config = load_config()
+    config['boards'][0]['board_name'] = 'Updated Board Name'
+    
+    # Save again
+    save_config(config)
+    
+    # Verify custom settings were preserved
+    saved_config = load_config()
+    board = saved_config['boards'][0]
+    assert board['board_name'] == 'Updated Board Name'
+    assert board['enabled'] is True
+    assert board['target_path'] == 'custom/path/{org}/{board}/{column}/{card}.md'
+    assert board['assets_folder'] == 'custom/assets/{org}/{board}'
 

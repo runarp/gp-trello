@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Any
 
 import click
 import yaml
@@ -13,6 +14,7 @@ from trello_sync.utils.config import (
     get_config_path,
     get_obsidian_root,
     load_config,
+    save_config,
     validate_config,
 )
 
@@ -516,3 +518,171 @@ def watching(output: str | None) -> None:
     except Exception as e:
         raise click.ClickException(f"Error generating watching file: {e}")
 
+<<<<<<< HEAD
+=======
+
+@cli.command()
+@click.option('--dry-run', is_flag=True, help='Show what would be updated without making changes')
+def config_update(dry_run: bool) -> None:
+    """Update trello-sync.yaml with all accessible Trello boards.
+    
+    This command:
+    - Adds any boards that are missing from the configuration
+    - Removes boards that no longer exist in Trello
+    - Preserves existing board configurations (enabled, target_path, etc.)
+    - Updates board names, org names, and workspace names from Trello
+    
+    This is a one-time setup command to populate your configuration file.
+    """
+    try:
+        config_path = get_config_path()
+        config = load_config()
+        existing_boards = config.get('boards', []) or []
+        
+        # Create a map of existing board configs by board_id
+        existing_by_id: dict[str, dict[str, Any]] = {}
+        for board_config in existing_boards:
+            board_id = board_config.get('board_id')
+            if board_id:
+                existing_by_id[board_id] = board_config.copy()
+        
+        # Fetch all boards from Trello
+        click.echo("Fetching boards from Trello...")
+        sync_client = TrelloSync()
+        trello_boards = sync_client.get_boards()
+        trello_board_ids = {board['id'] for board in trello_boards}
+        
+        click.echo(f"Found {len(trello_boards)} boards in Trello")
+        
+        # Create a map of Trello boards by ID
+        trello_by_id: dict[str, dict[str, Any]] = {}
+        for board in trello_boards:
+            trello_by_id[board['id']] = board
+        
+        # Determine what needs to be added/removed/updated
+        boards_to_add: list[str] = []
+        boards_to_remove: list[str] = []
+        boards_to_update: list[str] = []
+        
+        for board_id in trello_board_ids:
+            if board_id not in existing_by_id:
+                boards_to_add.append(board_id)
+            else:
+                boards_to_update.append(board_id)
+        
+        for board_id in existing_by_id:
+            if board_id not in trello_board_ids:
+                boards_to_remove.append(board_id)
+        
+        if dry_run:
+            click.echo("\n" + "="*50)
+            click.echo("DRY RUN - No changes will be made")
+            click.echo("="*50)
+        
+        click.echo(f"\nBoards to add: {len(boards_to_add)}")
+        click.echo(f"Boards to update: {len(boards_to_update)}")
+        click.echo(f"Boards to remove: {len(boards_to_remove)}")
+        
+        if boards_to_remove:
+            click.echo("\nBoards that will be removed (no longer in Trello):")
+            for board_id in boards_to_remove:
+                board_config = existing_by_id[board_id]
+                board_name = board_config.get('board_name', 'Unknown')
+                click.echo(f"  - {board_name} ({board_id})")
+        
+        if boards_to_add:
+            click.echo("\nBoards that will be added:")
+            for board_id in boards_to_add:
+                board = trello_by_id[board_id]
+                click.echo(f"  - {board['name']} ({board_id})")
+        
+        if dry_run:
+            click.echo("\nRun without --dry-run to apply changes.")
+            return
+        
+        # Fetch full board details for new boards
+        new_boards: list[dict[str, Any]] = []
+        updated_count = 0
+        
+        click.echo("\nFetching board details...")
+        for board_id in boards_to_add:
+            board = trello_by_id[board_id]
+            board_details = sync_client.get_board(board_id)
+            
+            # Extract organization name
+            org = board_details.get('organization', {})
+            org_name = org.get('displayName', '') if org else ''
+            workspace_name = org_name
+            
+            new_board_config = {
+                'board_id': board_id,
+                'board_name': board['name'],
+                'enabled': False,
+                'target_path': '20_tasks/Trello/{org}/{board}/{column}/{card}.md',
+                'workspace_name': workspace_name,
+            }
+            
+            if org_name:
+                new_board_config['org'] = org_name
+            
+            new_boards.append(new_board_config)
+            updated_count += 1
+            click.echo(f"  [{updated_count}/{len(boards_to_add)}] {board['name']}")
+        
+        # Update existing boards with latest info
+        for board_id in boards_to_update:
+            board = trello_by_id[board_id]
+            board_details = sync_client.get_board(board_id)
+            
+            # Extract organization name
+            org = board_details.get('organization', {})
+            org_name = org.get('displayName', '') if org else ''
+            workspace_name = org_name
+            
+            existing_config = existing_by_id[board_id]
+            
+            # Update board name and org info, but preserve other settings
+            existing_config['board_name'] = board['name']
+            existing_config['workspace_name'] = workspace_name
+            if org_name:
+                existing_config['org'] = org_name
+            elif 'org' in existing_config:
+                # Remove org if board no longer has one
+                del existing_config['org']
+            
+            # Ensure required fields exist
+            if 'enabled' not in existing_config:
+                existing_config['enabled'] = False
+            if 'target_path' not in existing_config:
+                existing_config['target_path'] = '20_tasks/Trello/{org}/{board}/{column}/{card}.md'
+        
+        # Build final boards list
+        final_boards: list[dict[str, Any]] = []
+        
+        # Add updated existing boards
+        for board_id in trello_board_ids:
+            if board_id in existing_by_id:
+                final_boards.append(existing_by_id[board_id])
+        
+        # Add new boards
+        final_boards.extend(new_boards)
+        
+        # Update config
+        config['boards'] = final_boards
+        
+        # Save config
+        save_config(config)
+        
+        click.echo(f"\n✅ Configuration updated!")
+        click.echo(f"   Added: {len(boards_to_add)} boards")
+        click.echo(f"   Updated: {len(boards_to_update)} boards")
+        click.echo(f"   Removed: {len(boards_to_remove)} boards")
+        click.echo(f"   Total boards: {len(final_boards)}")
+        click.echo(f"   Saved to: {config_path}")
+        
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        raise click.ClickException(f"Error updating config: {e}")
+
+>>>>>>> 9872aa0

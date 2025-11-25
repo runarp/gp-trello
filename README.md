@@ -135,8 +135,13 @@ default_assets_folder: ".local_assets/Trello"  # Relative to obsidian_root
 # Board mappings
 boards:
   - board_id: "board_123"
+<<<<<<< HEAD
     board_name: "My Board"  # Optional, for reference
     org: "My Workspace"  # Optional, organization/workspace name
+=======
+    board_name: "My Board"  # Optional: Board name for reference
+    org: "My Workspace"  # Optional: Organization/workspace name for reference
+>>>>>>> 9872aa0
     enabled: true
     target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
     assets_folder: ".local_assets/Trello/{org}/{board}"  # Optional override
@@ -144,7 +149,10 @@ boards:
   
   - board_id: "board_456"
     board_name: "Another Board"
+<<<<<<< HEAD
     org: ""  # Personal board (no workspace)
+=======
+>>>>>>> 9872aa0
     enabled: false  # Skip this board
 ```
 
@@ -196,6 +204,12 @@ trello-sync config-init --force
 # Show current configuration
 trello-sync config
 
+# Update configuration with all accessible Trello boards (one-time setup)
+trello-sync config-update
+
+# Preview what would be updated (dry run)
+trello-sync config-update --dry-run
+
 # Add or update board configuration (interactive)
 trello-sync config-add <board-id>
 
@@ -208,6 +222,13 @@ trello-sync config-add <board-id> \
 # Validate configuration file
 trello-sync config-validate
 ```
+
+**The `config-update` command** is the recommended way to initially populate your `trello-sync.yaml` file. It:
+- Fetches all boards accessible to your Trello account
+- Adds any missing boards with default settings (`enabled: false`)
+- Removes boards that no longer exist in Trello
+- Updates board names, organization names, and workspace names from Trello
+- Preserves your existing board configurations (enabled status, target_path, etc.)
 
 ### Features
 
