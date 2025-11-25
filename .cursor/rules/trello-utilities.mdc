@@ -1,0 +1,310 @@
+---
+description: Utility functions and patterns for syncing Trello data to local repository
+alwaysApply: false
+---
+
+# Trello Sync Utilities
+
+Utility functions and patterns for syncing Trello data to the local repository.
+
+## Name Sanitization
+
+### Function: `sanitizeFileName(name: string): string`
+
+Converts Trello names (boards, lists, cards) to filesystem-safe names.
+
+```javascript
+function sanitizeFileName(name) {
+  if (!name || typeof name !== 'string') {
+    return 'untitled';
+  }
+  
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars except spaces and hyphens
+    .replace(/\s+/g, '-')          // Replace spaces with hyphens
+    .replace(/-+/g, '-')           // Replace multiple hyphens with single
+    .replace(/^-+|-+$/g, '')       // Remove leading/trailing hyphens
+    .substring(0, 100)             // Limit length
+    || 'untitled';                 // Fallback if empty
+}
+```
+
+### Examples
+
+```
+"GP Family Office" → "gp-family-office"
+"To Do" → "to-do"
+"In Progress" → "in-progress"
+"Card #123: Implement Feature" → "card-123-implement-feature"
+"Card/With\\Special:Chars" → "cardwithspecialchars"
+```
+
+## Path Construction
+
+### Function: `buildCardPath(boardName, listName, cardName)`
+
+Constructs the full path for a card file.
+
+```javascript
+function buildCardPath(boardName, listName, cardName) {
+  const boardDir = sanitizeFileName(boardName);
+  const listDir = sanitizeFileName(listName);
+  const cardFile = sanitizeFileName(cardName) + '.md';
+  return `${boardDir}/${listDir}/${cardFile}`;
+}
+```
+
+## Date Formatting
+
+### Function: `formatISODate(date: string | Date): string`
+
+Converts dates to ISO 8601 format for frontmatter.
+
+```javascript
+function formatISODate(date) {
+  if (!date) return null;
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString();
+}
+```
+
+## Markdown Generation
+
+### Function: `generateCardMarkdown(cardData)`
+
+Generates markdown content from Trello card data. See @trello-structure for format specification.
+
+```javascript
+function generateCardMarkdown(cardData) {
+  const frontmatter = {
+    trello_board_card_id: cardData.id,
+    board: cardData.boardName,
+    url: cardData.url,
+    workspace: cardData.workspace,
+    created: formatISODate(cardData.dateCreated),
+    updated: formatISODate(cardData.dateLastActivity),
+    list: cardData.listName,
+    labels: cardData.labels?.map(l => l.name) || [],
+    members: cardData.members?.map(m => m.fullName) || [],
+    'due-date': formatISODate(cardData.due),
+    cover: cardData.cover?.url || null,
+    'attachments-count': cardData.attachments?.length || 0,
+    'comments-count': cardData.comments?.length || 0
+  };
+
+  const body = [
+    `# ${cardData.name}`,
+    '',
+    cardData.desc ? `## Description\n\n${cardData.desc}` : '',
+    ...generateChecklists(cardData.checklists),
+    ...generateAttachments(cardData.attachments),
+    ...generateComments(cardData.comments)
+  ].filter(Boolean).join('\n\n');
+
+  return `---\n${yaml.dump(frontmatter)}---\n\n${body}`;
+}
+```
+
+## Checklist Formatting
+
+### Function: `generateChecklists(checklists)`
+
+Formats checklists as markdown.
+
+```javascript
+function generateChecklists(checklists) {
+  if (!checklists || checklists.length === 0) return [];
+  
+  return checklists.map(checklist => {
+    const items = checklist.checkItems.map(item => 
+      `- [${item.state === 'complete' ? 'x' : ' '}] ${item.name}`
+    ).join('\n');
+    
+    return `## Checklist: ${checklist.name}\n\n${items}`;
+  });
+}
+```
+
+## Attachment Formatting
+
+### Function: `generateAttachments(attachments)`
+
+Formats attachments as markdown links.
+
+```javascript
+function generateAttachments(attachments) {
+  if (!attachments || attachments.length === 0) return [];
+  
+  const files = attachments
+    .filter(a => a.isUpload)
+    .map(a => `- [${a.name}](${a.url})${a.bytes ? ` (${formatBytes(a.bytes)})` : ''}`);
+  
+  const links = attachments
+    .filter(a => !a.isUpload)
+    .map(a => `- [${a.name}](${a.url})`);
+  
+  const sections = [];
+  if (files.length > 0) {
+    sections.push('### Files', ...files);
+  }
+  if (links.length > 0) {
+    sections.push('### Links', ...links);
+  }
+  
+  return sections.length > 0 ? ['## Attachments', '', ...sections] : [];
+}
+```
+
+## Comment Formatting
+
+### Function: `generateComments(comments)`
+
+Formats comments as markdown.
+
+```javascript
+function generateComments(comments) {
+  if (!comments || comments.length === 0) return [];
+  
+  const formatted = comments.map(comment => {
+    const date = formatDate(comment.date);
+    return `#### Comment by ${comment.memberCreator.fullName}\n**Date:** ${date}\n\n${comment.data.text}`;
+  });
+  
+  return ['## Comments', '', ...formatted];
+}
+```
+
+## Index Generation
+
+### Function: `generateBoardIndex(boardData)`
+
+Generates board index JSON. See @trello-indexes for format specification.
+
+```javascript
+function generateBoardIndex(boardData) {
+  return {
+    board: {
+      id: boardData.id,
+      name: boardData.name,
+      url: boardData.url,
+      workspace: boardData.workspace,
+      lastSync: new Date().toISOString()
+    },
+    lists: boardData.lists.map(list => ({
+      id: list.id,
+      name: list.name,
+      sanitizedName: sanitizeFileName(list.name),
+      path: sanitizeFileName(list.name),
+      cardCount: list.cards.length,
+      cards: list.cards.map(card => ({
+        id: card.id,
+        name: card.name,
+        sanitizedName: sanitizeFileName(card.name),
+        filename: `${sanitizeFileName(card.name)}.md`,
+        path: `${sanitizeFileName(list.name)}/${sanitizeFileName(card.name)}.md`,
+        url: card.url,
+        labels: card.labels?.map(l => l.name) || [],
+        members: card.members?.map(m => m.fullName) || [],
+        dueDate: formatISODate(card.due),
+        lastUpdated: formatISODate(card.dateLastActivity)
+      }))
+    })),
+    totalCards: boardData.lists.reduce((sum, list) => sum + list.cards.length, 0)
+  };
+}
+```
+
+## Error Handling
+
+### Function: `handleSyncError(error, context)`
+
+Logs and handles sync errors gracefully.
+
+```javascript
+function handleSyncError(error, context) {
+  const errorLog = {
+    timestamp: new Date().toISOString(),
+    context,
+    error: {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    }
+  };
+  
+  // Append to error log
+  fs.appendFileSync(
+    '.trello-sync/sync-errors.log',
+    JSON.stringify(errorLog, null, 2) + '\n'
+  );
+  
+  // Continue with next item
+  console.error(`Error in ${context}:`, error.message);
+}
+```
+
+## Rate Limiting
+
+### Function: `rateLimitDelay()`
+
+Adds delays to respect Trello API rate limits (300 requests per 10 seconds).
+
+```javascript
+// Trello allows 300 requests per 10 seconds
+const RATE_LIMIT = { requests: 300, window: 10000 };
+let requestCount = 0;
+let windowStart = Date.now();
+
+async function rateLimitDelay() {
+  const now = Date.now();
+  
+  if (now - windowStart > RATE_LIMIT.window) {
+    requestCount = 0;
+    windowStart = now;
+  }
+  
+  if (requestCount >= RATE_LIMIT.requests) {
+    const waitTime = RATE_LIMIT.window - (now - windowStart);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    requestCount = 0;
+    windowStart = Date.now();
+  }
+  
+  requestCount++;
+}
+```
+
+## Usage in Sync
+
+When executing sync operations, use these utilities:
+
+```javascript
+// 1. Sanitize names
+const boardDir = sanitizeFileName(board.name);
+const listDir = sanitizeFileName(list.name);
+const cardFile = sanitizeFileName(card.name) + '.md';
+
+// 2. Build paths
+const cardPath = `${boardDir}/${listDir}/${cardFile}`;
+
+// 3. Generate markdown
+const markdown = generateCardMarkdown(cardData);
+
+// 4. Write file
+fs.writeFileSync(cardPath, markdown);
+
+// 5. Handle errors
+try {
+  await syncCard(card);
+} catch (error) {
+  handleSyncError(error, { cardId: card.id, cardName: card.name });
+}
+```
+
+## Related Rules
+
+- @trello-structure - Directory structure and card format
+- @trello-sync - Sync workflow
+- @trello-indexes - Index file formats

@@ -1,0 +1,194 @@
+---
+description: Best practices for creating and maintaining MDC rule files across the organization
+alwaysApply: false
+---
+
+# MDC Rules Management Guide
+
+This document outlines best practices for creating and maintaining `.cursor/rules/*.mdc` files across all projects in the organization.
+
+## File Structure
+
+- **Location**: All project rules must be stored in `.cursor/rules/` directory
+- **Naming**: Use descriptive, kebab-case names (e.g., `typescript-standards.mdc`, `api-patterns.mdc`)
+- **Extension**: Always use `.mdc` extension (not `.cursorrules` or `.md`)
+
+## Rule File Format
+
+Every `.mdc` file must include frontmatter with metadata:
+
+```yaml
+---
+description: Brief description of what this rule covers
+globs:
+  - "**/*.ts"           # Optional: file patterns that trigger this rule
+  - "src/api/**/*.ts"   # Multiple patterns supported
+alwaysApply: false      # Set to true only if rule should always be included
+---
+```
+
+### Frontmatter Fields
+
+- **`description`** (required): Clear, concise description. Used for agent-requested rules and manual `@ruleName` references
+- **`globs`** (optional): Array of file patterns. Rule auto-attaches when matching files are referenced
+- **`alwaysApply`** (optional, default: `false`): Set to `true` only for critical rules that must always be in context
+
+## Rule Types & When to Use
+
+### 1. Always Apply (`alwaysApply: true`)
+Use sparingly for foundational rules that affect all code:
+- Core coding standards
+- Security requirements
+- Project architecture principles
+
+**Example**: `coding-standards.mdc` with organization-wide style guide
+
+### 2. Auto-Attached (via `globs`)
+Use for context-specific rules that activate when relevant files are open:
+- Language-specific patterns (e.g., TypeScript, Python)
+- Framework conventions (e.g., React, FastAPI)
+- Domain-specific rules (e.g., API routes, database models)
+
+**Example**: `typescript.mdc` with `globs: ["**/*.ts", "**/*.tsx"]`
+
+### 3. Agent-Requested
+Rules with `description` but no `globs` or `alwaysApply: false`. AI decides when to include:
+- Specialized patterns
+- Optional best practices
+- Reference documentation
+
+**Example**: `testing-patterns.mdc` for test file conventions
+
+### 4. Manual (`@ruleName`)
+Rules invoked explicitly via `@ruleName`:
+- Rarely-used patterns
+- Advanced configurations
+- Optional workflows
+
+## Content Guidelines
+
+### Keep Rules Focused
+- **One concern per file**: Don't mix unrelated topics
+- **Under 500 lines**: Split large rules into multiple files
+- **Composable**: Design rules to work together
+
+### Structure Your Content
+
+```markdown
+## Purpose
+Brief explanation of what this rule covers
+
+## Key Principles
+- Principle 1
+- Principle 2
+
+## Examples
+```typescript
+// Good example
+const example = "demonstrates pattern";
+```
+
+## Anti-Patterns
+```typescript
+// Bad example - avoid this
+const bad = "anti-pattern";
+```
+
+## References
+- Link to relevant docs
+- Related rules: @other-rule-name
+```
+
+### Use Code References
+Reference specific files or patterns using `@filename.ts` syntax:
+```markdown
+Follow the pattern established in @src/utils/validation.ts
+```
+
+## Common Rule Categories
+
+Organize rules by concern:
+
+- **`coding-standards.mdc`**: Style, naming, formatting
+- **`typescript.mdc`**: TypeScript-specific patterns
+- **`api-patterns.mdc`**: API design and conventions
+- **`testing.mdc`**: Testing strategies and patterns
+- **`security.mdc`**: Security requirements
+- **`architecture.mdc`**: System design principles
+- **`deployment.mdc`**: CI/CD and deployment practices
+
+## Maintenance
+
+### Version Control
+- **Commit all `.mdc` files**: Rules are part of project documentation
+- **Review changes**: Treat rule updates like code changes
+- **Document updates**: Note significant changes in commit messages
+
+### Updating Rules
+1. Test rule changes in a branch
+2. Verify AI behavior matches expectations
+3. Update related documentation
+4. Communicate changes to team
+
+### Sharing Rules Across Projects
+- **Common rules**: Store in shared template repository
+- **Project-specific**: Keep in individual project repos
+- **Reference**: Use `@ruleName` to reference rules from other projects when needed
+
+## Best Practices
+
+✅ **Do:**
+- Write clear, actionable instructions
+- Use concrete examples
+- Reference existing code patterns
+- Keep rules concise and focused
+- Test rules before committing
+- Update rules as patterns evolve
+
+❌ **Don't:**
+- Duplicate rules across files
+- Create overly broad rules
+- Use `alwaysApply: true` unnecessarily
+- Mix unrelated concerns in one file
+- Write vague or ambiguous instructions
+- Ignore rule conflicts
+
+## Creating New Rules
+
+1. **Identify need**: What pattern or standard needs encoding?
+2. **Choose type**: Always, auto-attached, agent-requested, or manual?
+3. **Write frontmatter**: Include description and appropriate metadata
+4. **Draft content**: Follow structure guidelines above
+5. **Test**: Verify AI behavior matches intent
+6. **Document**: Add to project README if significant
+
+## Rule Precedence
+
+Cursor evaluates rules in this order:
+1. **Local (manual)**: `@ruleName` explicitly included
+2. **Auto Attached**: Files matching `globs` patterns
+3. **Agent Requested**: AI chooses to include based on `description`
+4. **Always**: Rules with `alwaysApply: true`
+
+## Troubleshooting
+
+**Rule not applying?**
+- Check frontmatter syntax (YAML format)
+- Verify glob patterns match intended files
+- Ensure `description` is present for agent-requested rules
+
+**Too many rules active?**
+- Reduce `alwaysApply: true` usage
+- Make glob patterns more specific
+- Split broad rules into focused ones
+
+**Conflicting rules?**
+- Review rule precedence
+- Consolidate overlapping rules
+- Clarify scope of each rule
+
+## Resources
+
+- [Cursor Rules Documentation](https://docs.cursor.com/context/rules)
+- [Awesome Cursor Rules](https://github.com/PatrickJS/awesome-cursorrules)
+- [Cursor Directory](https://cursor.directory/)

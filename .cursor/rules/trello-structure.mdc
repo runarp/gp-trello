@@ -1,0 +1,279 @@
+---
+description: Directory structure and markdown format for Trello cards in local repository
+globs:
+  - "**/*.md"
+  - "**/.trello-index.json"
+  - "**/.index.json"
+alwaysApply: false
+---
+
+# Trello Directory Structure and Card Format
+
+This document defines both the logical directory structure for organizing Trello cards in the filesystem and the markdown format for individual card files.
+
+## Directory Structure Mapping
+
+This project uses a logical directory structure that maps Trello entities to the filesystem:
+
+- **Board** → Directory
+  - Each Trello board corresponds to a top-level directory in the project
+  - Directory name should match the board name (sanitized for filesystem compatibility)
+
+- **List/Column** → Folder
+  - Each Trello list (column) corresponds to a subdirectory within the board directory
+  - Folder name should match the list name (sanitized for filesystem compatibility)
+
+- **Card** → File
+  - Each Trello card corresponds to a file within the appropriate list folder
+  - File name should match the card name (sanitized for filesystem compatibility)
+  - File extension should be appropriate for the card content type (e.g., `.md` for markdown, `.txt` for plain text)
+
+### Example Structure
+
+```
+project-root/
+└── data/
+    ├── board-name-1/
+    │   ├── todo/
+    │   │   ├── card-1.md
+    │   │   └── card-2.md
+    │   ├── in-progress/
+    │   │   └── card-3.md
+    │   └── done/
+    │       └── card-4.md
+    └── board-name-2/
+        ├── backlog/
+        └── active/
+```
+
+All synced Trello boards are stored in the `data/` folder from the project root.
+
+### File Naming Conventions
+
+- Use lowercase names with hyphens for spaces
+- Remove special characters that are invalid in filenames
+- Preserve the original card/board/list name as much as possible while ensuring filesystem compatibility
+- Card files should follow the markdown format specified below
+
+### Implementation Notes
+
+- When creating directories for boards, sanitize the board name to be filesystem-safe
+- When creating folders for lists, sanitize the list name to be filesystem-safe
+- When creating files for cards, sanitize the card name and use appropriate file extensions
+- Maintain the hierarchical relationship: Board → List → Card
+
+## Card File Format
+
+Local markdown mirrors of Trello cards should maintain a consistent structure that includes:
+- **Frontmatter**: Metadata about the card
+- **Body**: The card's content including description, checklists, attachments, and comments
+
+### Frontmatter Header
+
+Every Trello card markdown file should start with a YAML frontmatter block containing essential metadata:
+
+```yaml
+---
+trello_board_card_id: "507f1f77bcf86cd799439011"
+board: "GP Family Office"
+url: "https://trello.com/c/abc123/example-card"
+workspace: "GP Family Office Workspace"
+created: "2024-01-15T10:30:00Z"
+updated: "2024-01-20T14:45:00Z"
+list: "In Progress"
+labels: ["Priority", "Urgent"]
+members: ["John Doe", "Jane Smith"]
+due-date: "2024-02-01T00:00:00Z"
+---
+```
+
+#### Required Frontmatter Fields
+
+- **`trello_board_card_id`**: The unique Trello card ID (string)
+- **`board`**: The name of the board this card belongs to (string)
+- **`url`**: The full Trello URL to the card (string)
+- **`workspace`**: The workspace/organization name (string)
+
+#### Optional Frontmatter Fields
+
+- **`created`**: ISO 8601 timestamp of when the card was created
+- **`updated`**: ISO 8601 timestamp of the last update
+- **`list`**: The current list/column name
+- **`labels`**: Array of label names
+- **`members`**: Array of member names assigned to the card
+- **`due-date`**: ISO 8601 timestamp of the due date
+- **`cover`**: Cover image URL if present
+- **`attachments-count`**: Number of attachments
+- **`comments-count`**: Number of comments
+
+### Body Content
+
+The body of the markdown file should be organized into clear sections:
+
+#### 1. Card Title
+
+The first line should be the card title as an H1 heading:
+
+```markdown
+# Card Title Here
+```
+
+#### 2. Description
+
+The card description follows the title. If the card has no description, you can omit this section or include a note:
+
+```markdown
+## Description
+
+This is the card description content. It can include:
+- Markdown formatting
+- **Bold text**
+- *Italic text*
+- Links: [Example](https://example.com)
+- Code blocks
+```
+
+#### 3. Checklists
+
+Each checklist should be formatted as a markdown checklist with the checklist name as a heading:
+
+```markdown
+## Checklist: Pre-launch Tasks
+
+- [x] Design mockups completed
+- [x] User testing conducted
+- [ ] Final review meeting scheduled
+- [ ] Documentation updated
+- [ ] Deployment checklist reviewed
+```
+
+For multiple checklists:
+
+```markdown
+## Checklists
+
+### Checklist: Development Tasks
+
+- [x] Set up development environment
+- [x] Write unit tests
+- [ ] Code review completed
+
+### Checklist: Deployment Tasks
+
+- [ ] Staging deployment
+- [ ] Production deployment
+- [ ] Post-deployment monitoring
+```
+
+#### 4. Attachments
+
+Attachments should be listed with their names and URLs:
+
+```markdown
+## Attachments
+
+- [document.pdf](https://trello-attachments.s3.amazonaws.com/...)
+- [screenshot.png](https://trello-attachments.s3.amazonaws.com/...)
+- [External Link: Project Spec](https://example.com/spec)
+```
+
+For attachments with additional metadata:
+
+```markdown
+## Attachments
+
+### Files
+- [document.pdf](https://trello-attachments.s3.amazonaws.com/...) (2.3 MB, added 2024-01-15)
+- [screenshot.png](https://trello-attachments.s3.amazonaws.com/...) (1.1 MB, added 2024-01-16)
+
+### Links
+- [Project Specification](https://example.com/spec) (added 2024-01-15)
+- [Design Mockups](https://figma.com/...) (added 2024-01-16)
+```
+
+#### 5. Comments
+
+Comments should be formatted with author, timestamp, and content:
+
+```markdown
+## Comments
+
+#### Comment by John Doe
+**Date:** 2024-01-15 10:30 AM
+
+This is the comment content.
+
+---
+
+#### Comment by Jane Smith
+**Date:** 2024-01-16 02:15 PM
+
+This is another comment.
+
+> Reply: This is a nested comment or reply.
+```
+
+## Best Practices
+
+### 1. File Naming
+
+Card files should be placed in the appropriate directory structure: `data/{board}/{list}/{card-name}.md`
+
+Use descriptive filenames that include the card title and optionally the card ID.
+
+### 2. Keep Frontmatter Minimal
+
+Only include essential metadata in the frontmatter. Additional details can go in the body.
+
+### 3. Preserve Original Formatting
+
+Maintain the original markdown formatting from Trello when possible, but feel free to enhance it for better readability.
+
+### 4. Update Timestamps
+
+When syncing cards, always update the `updated` timestamp in the frontmatter to reflect the last sync time.
+
+### 5. Handle Missing Data
+
+If a card has no description, checklists, attachments, or comments, you can either:
+- Omit the section entirely
+- Include the section header with a note: "No description available"
+
+### 6. Link Preservation
+
+Always preserve links to:
+- The original Trello card (in frontmatter `url`)
+- Attachments (use full URLs)
+- External links from descriptions
+
+### 7. Checklist State
+
+Use markdown checkboxes `- [x]` for completed items and `- [ ]` for incomplete items to maintain the state of checklists.
+
+### 8. Comment Threading
+
+For threaded comments, use blockquotes (`>`) to indicate replies or nested comments.
+
+### 9. Metadata Consistency
+
+Ensure consistent formatting of:
+- Dates (use ISO 8601 format: `YYYY-MM-DDTHH:mm:ssZ`)
+- Member names (use consistent format)
+- Label names (preserve original capitalization)
+
+## MCP Server Integration
+
+This project uses the **MCP Trello Admin server** located at:
+```
+~/Projects/runarp/mcp-trello-admin
+```
+
+The server is already configured and active in Cursor. All MCP tools are prefixed with `mcp_trello-admin_*`.
+
+For sync operations, see @trello-sync.
+
+## Related Rules
+
+- @trello-sync - Sync workflow and execution
+- @trello-utilities - Utility functions for syncing
+- @trello-indexes - Index file formats

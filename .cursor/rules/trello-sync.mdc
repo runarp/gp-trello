@@ -1,0 +1,133 @@
+---
+description: Sync workflow and execution pattern for syncing Trello boards using MCP server
+alwaysApply: false
+---
+
+# Trello Sync Strategy
+
+This document outlines how to sync Trello boards to a local, AI-indexable repository using the MCP Trello Admin server.
+
+## MCP Server Location
+
+The MCP Trello Admin server is located at:
+```
+~/Projects/runarp/mcp-trello-admin
+```
+
+The server is already configured and active in Cursor. All MCP tools are prefixed with `mcp_trello-admin_*`.
+
+## Sync Workflow
+
+### Step 1: Get All Boards
+
+Use `mcp_trello-admin_get_boards` to retrieve all accessible boards:
+
+```javascript
+// Get all boards
+const boards = await mcp_trello-admin_get_boards({ filter: "all" });
+```
+
+### Step 2: For Each Board
+
+For each board, perform the following:
+
+1. **Create board directory** (sanitize board name using utilities from @trello-utilities)
+2. **Get board lists** using `mcp_trello-admin_get_board_lists`
+3. **Create list directories** (sanitize list names)
+4. **Get cards in each list** using `mcp_trello-admin_get_cards_in_list`
+5. **Create card files** in the appropriate list directory
+
+### Step 3: Get Card Details
+
+For each card, use `mcp_trello-admin_get_card` to get full details including:
+- Description
+- Comments (via `mcp_trello-admin_get_comments`)
+- Attachments (via `mcp_trello-admin_get_attachments`)
+- Checklists (via `mcp_trello-admin_get_checklist` for each checklist)
+- Labels (via `mcp_trello-admin_get_card_labels`)
+- Members (via `mcp_trello-admin_get_card_members`)
+
+### Step 4: Generate Markdown File
+
+Create a markdown file following the format in @trello-structure:
+- Location: `data/{board-name}/{list-name}/{card-name}.md`
+- Include YAML frontmatter with all metadata
+- Include card body with description, checklists, attachments, comments
+
+## Key MCP Tools for Syncing
+
+### Board Operations
+- `mcp_trello-admin_get_boards` - Get all boards
+- `mcp_trello-admin_get_board` - Get board details
+- `mcp_trello-admin_get_board_lists` - Get all lists on a board
+- `mcp_trello-admin_get_board_labels` - Get all labels on a board
+
+### List Operations
+- `mcp_trello-admin_get_list` - Get list details
+- `mcp_trello-admin_get_cards_in_list` - Get all cards in a list
+
+### Card Operations
+- `mcp_trello-admin_get_card` - Get full card details
+- `mcp_trello-admin_get_comments` - Get card comments
+- `mcp_trello-admin_get_attachments` - Get card attachments
+- `mcp_trello-admin_get_card_labels` - Get card labels
+- `mcp_trello-admin_get_card_members` - Get card members
+
+### Checklist Operations
+- `mcp_trello-admin_get_checklist` - Get checklist details
+- `mcp_trello-admin_get_checkitems` - Get checklist items
+
+## Sync Execution Pattern
+
+When executing a sync, follow this pattern:
+
+1. **Initialize**: Create `.trello-sync/` directory for metadata
+2. **Fetch**: Use MCP tools to get all data
+3. **Transform**: Convert Trello data to markdown format using utilities from @trello-utilities
+4. **Write**: Create/update files in the `data/` directory structure (see @trello-structure)
+5. **Index**: Update index files for AI discoverability (see @trello-indexes)
+6. **Track**: Record sync timestamp and state
+
+## Incremental Sync
+
+For efficiency, track:
+- Last sync timestamp in `.trello-sync/last-sync.json`
+- Card modification dates to only update changed cards
+- Board/list structure changes
+
+## Error Handling
+
+- Handle rate limiting (Trello API has rate limits - 300 requests per 10 seconds)
+- Handle missing data gracefully
+- Log errors to `.trello-sync/sync-errors.log`
+- Continue syncing other boards if one fails
+
+## Example Sync Command
+
+To execute a full sync, Cursor should:
+
+1. Call `mcp_trello-admin_get_boards({ filter: "all" })`
+2. For each board:
+   - Create directory: `data/sanitize(board.name)` (use function from @trello-utilities)
+   - Call `mcp_trello-admin_get_board_lists({ boardId: board.id })`
+   - For each list:
+     - Create directory: `data/{board}/sanitize(list.name)`
+     - Call `mcp_trello-admin_get_cards_in_list({ listId: list.id })`
+     - For each card:
+       - Call `mcp_trello-admin_get_card({ cardId: card.id })`
+       - Get comments, attachments, checklists, labels, members
+       - Generate markdown file using utilities from @trello-utilities
+       - Write file at: `data/{board}/{list}/{card}.md`
+
+## Index Files
+
+Create index files for AI discoverability (see @trello-indexes for format):
+- `.trello-index.json` - Master index of all boards, lists, cards
+- `data/{board}/.index.json` - Board-specific index
+- `.trello-sync/last-sync.json` - Sync state tracking
+
+## Related Rules
+
+- @trello-structure - Directory structure and card format
+- @trello-utilities - Utility functions for syncing
+- @trello-indexes - Index file formats

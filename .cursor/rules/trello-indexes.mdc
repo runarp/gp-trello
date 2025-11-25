@@ -1,0 +1,159 @@
+---
+description: Index file formats for AI discoverability of Trello repository structure
+alwaysApply: false
+---
+
+# Trello Index File Format
+
+Index files help Cursor and AI assistants quickly discover and understand the Trello repository structure without reading every file.
+
+## Master Index: `.trello-index.json`
+
+Located at the project root, this file provides an overview of all synced boards.
+
+```json
+{
+  "version": "1.0",
+  "lastSync": "2024-01-20T14:45:00Z",
+  "totalBoards": 5,
+  "totalCards": 127,
+  "boards": [
+    {
+      "id": "board_id_123",
+      "name": "GP Family Office",
+      "sanitizedName": "gp-family-office",
+      "path": "data/gp-family-office",
+      "url": "https://trello.com/b/board_id_123",
+      "lists": [
+        {
+          "id": "list_id_456",
+          "name": "To Do",
+          "sanitizedName": "to-do",
+          "path": "data/gp-family-office/to-do",
+          "cardCount": 12
+        }
+      ],
+      "totalCards": 45,
+      "lastUpdated": "2024-01-20T14:30:00Z"
+    }
+  ]
+}
+```
+
+## Board Index: `{board}/.index.json`
+
+Located in each board directory, provides board-specific information.
+
+```json
+{
+  "board": {
+    "id": "board_id_123",
+    "name": "GP Family Office",
+    "url": "https://trello.com/b/board_id_123",
+    "workspace": "GP Family Office Workspace",
+    "lastSync": "2024-01-20T14:45:00Z"
+  },
+  "lists": [
+    {
+      "id": "list_id_456",
+      "name": "To Do",
+      "sanitizedName": "to-do",
+      "path": "to-do",
+      "cardCount": 12,
+      "cards": [
+        {
+          "id": "card_id_789",
+          "name": "Implement authentication",
+          "sanitizedName": "implement-authentication",
+          "filename": "implement-authentication.md",
+          "path": "to-do/implement-authentication.md",
+          "url": "https://trello.com/c/card_id_789",
+          "labels": ["Priority", "Urgent"],
+          "members": ["John Doe"],
+          "dueDate": "2024-02-01T00:00:00Z",
+          "lastUpdated": "2024-01-20T14:30:00Z"
+        }
+      ]
+    }
+  ],
+  "totalCards": 45,
+  "labels": [
+    {
+      "id": "label_id_abc",
+      "name": "Priority",
+      "color": "red"
+    }
+  ]
+}
+```
+
+## List Index: `{board}/{list}/.index.json` (Optional)
+
+For large lists, a list-specific index can help with quick lookups.
+
+```json
+{
+  "list": {
+    "id": "list_id_456",
+    "name": "To Do",
+    "boardId": "board_id_123",
+    "boardName": "GP Family Office"
+  },
+  "cards": [
+    {
+      "id": "card_id_789",
+      "name": "Implement authentication",
+      "filename": "implement-authentication.md",
+      "url": "https://trello.com/c/card_id_789",
+      "labels": ["Priority"],
+      "dueDate": "2024-02-01T00:00:00Z",
+      "lastUpdated": "2024-01-20T14:30:00Z"
+    }
+  ],
+  "cardCount": 12,
+  "lastSync": "2024-01-20T14:45:00Z"
+}
+```
+
+## Sync State: `.trello-sync/last-sync.json`
+
+Tracks sync state and metadata.
+
+```json
+{
+  "lastSync": "2024-01-20T14:45:00Z",
+  "syncVersion": "1.0",
+  "boardsSynced": 5,
+  "cardsSynced": 127,
+  "errors": [],
+  "boardStates": {
+    "board_id_123": {
+      "lastSync": "2024-01-20T14:45:00Z",
+      "cardsUpdated": 3,
+      "cardsCreated": 1,
+      "cardsDeleted": 0
+    }
+  }
+}
+```
+
+## Benefits for AI/Cursor
+
+1. **Quick Discovery**: AI can quickly find boards, lists, and cards without reading all files
+2. **Context Understanding**: Index files provide metadata and relationships
+3. **Efficient Queries**: Can search indexes before reading actual card files
+4. **Change Tracking**: Sync state helps identify what changed
+5. **Navigation**: Paths and URLs help navigate the structure
+
+## Index Maintenance
+
+- Update indexes during sync operations (see @trello-sync)
+- Keep indexes in sync with actual file structure
+- Use indexes to detect orphaned files (files without index entries)
+- Use indexes to detect missing files (index entries without files)
+
+## Related Rules
+
+- @trello-structure - Directory structure and card format
+- @trello-sync - Sync workflow
+- @trello-utilities - Utility functions including index generation
