@@ -52,7 +52,7 @@ boards:
   - board_id: "6434c950b226a19187b1e830"
     board_name: "Purchasing - GP"
     org: "Family Office"
-    enabled: false
+    enabled: true
     target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
     workspace_name: "Family Office"
 
@@ -717,7 +717,7 @@ boards:
   - board_id: "62ade74aa42c1210a82dbecc"
     board_name: "Life Planning"
     org: "Personal"
-    enabled: false
+    enabled: true
     target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
     workspace_name: "Personal"
 

@@ -135,13 +135,8 @@ default_assets_folder: ".local_assets/Trello"  # Relative to obsidian_root
 # Board mappings
 boards:
   - board_id: "board_123"
-<<<<<<< HEAD
     board_name: "My Board"  # Optional, for reference
     org: "My Workspace"  # Optional, organization/workspace name
-=======
-    board_name: "My Board"  # Optional: Board name for reference
-    org: "My Workspace"  # Optional: Organization/workspace name for reference
->>>>>>> 9872aa0
     enabled: true
     target_path: "20_tasks/Trello/{org}/{board}/{column}/{card}.md"
     assets_folder: ".local_assets/Trello/{org}/{board}"  # Optional override
@@ -149,10 +144,7 @@ boards:
   
   - board_id: "board_456"
     board_name: "Another Board"
-<<<<<<< HEAD
     org: ""  # Personal board (no workspace)
-=======
->>>>>>> 9872aa0
     enabled: false  # Skip this board
 ```
 
@@ -266,8 +258,18 @@ Attachments are stored with sanitized filenames. If a file already exists, a cou
 
 ## Related Documentation
 
+### Comprehensive Guides
+
+- **[CLI Interface and Workflow Documentation](docs/cli-and-workflow.md)** - Complete guide to CLI commands, continuous sync workflow, configuration management, and best practices
+
+### Rule Files
+
 - `.cursor/rules/trello-structure.mdc` - Directory structure and card format
 - `.cursor/rules/trello-sync.mdc` - Sync workflow
 - `.cursor/rules/trello-utilities.mdc` - Utility functions
 - `.cursor/rules/trello-indexes.mdc` - Index file formats
+
+### Other Documentation
+
+- `docs/roadmap.md` - Future features and round-trip sync plans
 
